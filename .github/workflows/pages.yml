@@ -18,6 +18,9 @@ concurrency:
 
 jobs:
   sync-and-deploy:
+    # Scheduled runs use the repo's default branch; only main may deploy to
+    # the github-pages environment, so skip anywhere else instead of failing.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
