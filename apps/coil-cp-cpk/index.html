@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPC Dashboard - Cp/Cpk Management</title>
+    <!-- favicon ใช้ SVG (2 KB) ส่วน PNG ย่อเหลือ 180x180 ไว้ให้ iOS -->
+    <link rel="icon" type="image/svg+xml" href="images/icon.svg">
+    <link rel="icon" type="image/png" sizes="180x180" href="images/icon.png">
+    <link rel="apple-touch-icon" href="images/icon.png">
+
+    <!-- อุ่นเครื่องการเชื่อมต่อ CDN ตั้งแต่เริ่ม parse หน้า -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- ฟอนต์ Sarabun: โหลดตรงจาก head แทน @import ใน style.css เพื่อไม่ให้ต้องรอเป็นทอด ๆ -->
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap">
+
+    <!-- ดึง Tailwind CSS และ Chart.js มาใช้งาน -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- แก้ไขพาธชี้ไปที่โฟลเดอร์ css -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
+
+    <!-- Navigation -->
+    <nav class="bg-blue-900 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                SPC & Cp/Cpk Dashboard
+            </h1>
+            <div class="flex items-center gap-3">
+                <div class="text-sm">สถานะเชื่อมต่อ: <span id="connection-status" class="text-yellow-400 font-semibold">กำลังโหลด...</span></div>
+                <button id="settings-btn" type="button" class="p-2 rounded-lg hover:bg-blue-800 transition-colors" title="ตั้งค่า">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow">
+
+        <!-- ส่วนกรอกข้อมูล -->
+        <div id="entry-card" class="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-fit lg:sticky lg:top-4 self-start">
+            <!-- สลับโหมด: วัดขนาด (Cp/Cpk) กับ ตรวจสภาพภายนอก (Appearance) -->
+            <div class="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-lg mb-4">
+                <button type="button" data-entry-mode="measure" class="relative py-2 rounded-md text-sm font-bold transition-colors bg-white shadow text-blue-700">
+                    📏 วัดขนาด
+                    <span id="measure-tab-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-600 text-white text-[11px] leading-5 text-center animate-bounce">0</span>
+                </button>
+                <button type="button" data-entry-mode="appearance" class="relative py-2 rounded-md text-sm font-bold transition-colors text-gray-500">
+                    👁️ ตรวจสภาพภายนอก
+                    <span id="appearance-tab-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-600 text-white text-[11px] leading-5 text-center animate-bounce">0</span>
+                </button>
+            </div>
+            <div id="schedule-due-banner" class="hidden mb-3"></div>
+            <div id="appearance-due-banner" class="hidden mb-3"></div>
+            <h2 id="entry-title" class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">บันทึกข้อมูลการวัด (Data Entry)</h2>
+            <form id="data-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">กระบวนการ (Process)</label>
+                    <select id="machine-id" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">รุ่นชิ้นงาน (Part ID)</label>
+                    <select id="part-id" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    </select>
+                </div>
+                <!-- รอบการตรวจวัดของเครื่องที่เลือก (สร้างโดย js/schedule.js) -->
+                <div id="schedule-form-info" class="measure-only hidden"></div>
+                <div class="measure-only">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">จุดตรวจสอบ (Parameter)</label>
+                    <select id="parameter-id" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></select>
+                </div>
+
+                <!-- Numeric input section (ซ่อน/แสดงตามประเภท parameter) -->
+                <div class="measure-only">
+                <div id="numeric-input-section">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">ค่าที่วัดได้ (Measured Value) <span class="text-gray-400 font-normal">— ขั้นต่ำ 3 ค่า</span></label>
+                    <div id="measured-values-container" class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-400 w-5 text-right shrink-0">1.</span>
+                            <input type="number" step="0.001" placeholder="ชิ้นที่ 1..." class="measured-value-input flex-1 p-2 border border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-400 w-5 text-right shrink-0">2.</span>
+                            <input type="number" step="0.001" placeholder="ชิ้นที่ 2..." class="measured-value-input flex-1 p-2 border border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-400 w-5 text-right shrink-0">3.</span>
+                            <input type="number" step="0.001" placeholder="ชิ้นที่ 3..." class="measured-value-input flex-1 p-2 border border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    <button type="button" id="add-value-btn" class="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        เพิ่มค่า
+                    </button>
+                </div>
+
+                <!-- Gauge input section (ซ่อน/แสดงเฉพาะ Item 6) -->
+                <div id="gauge-input-section" class="hidden">
+                    <label class="block text-sm font-medium text-gray-600 mb-2">ผลการตรวจสอบ Gauge</label>
+                    <div class="space-y-2" id="gauge-rows-container">
+                        <div class="flex items-center gap-2" data-gauge-row="0">
+                            <span class="text-xs text-gray-400 w-5 text-right shrink-0">1.</span>
+                            <button type="button" class="gauge-pass-btn flex-1 py-2 px-3 rounded-lg border-2 font-bold text-sm border-gray-300 text-gray-500 hover:border-green-500 hover:text-green-600 hover:bg-green-50 transition-colors">✓ ผ่าน</button>
+                            <button type="button" class="gauge-fail-btn flex-1 py-2 px-3 rounded-lg border-2 font-bold text-sm border-gray-300 text-gray-500 hover:border-red-500 hover:text-red-600 hover:bg-red-50 transition-colors">✗ ไม่ผ่าน</button>
+                            <input type="hidden" class="gauge-result-input" value="">
+                        </div>
+                        <div class="flex items-center gap-2" data-gauge-row="1">
+                            <span class="text-xs text-gray-400 w-5 text-right shrink-0">2.</span>
+                            <button type="button" class="gauge-pass-btn flex-1 py-2 px-3 rounded-lg border-2 font-bold text-sm border-gray-300 text-gray-500 hover:border-green-500 hover:text-green-600 hover:bg-green-50 transition-colors">✓ ผ่าน</button>
+                            <button type="button" class="gauge-fail-btn flex-1 py-2 px-3 rounded-lg border-2 font-bold text-sm border-gray-300 text-gray-500 hover:border-red-500 hover:text-red-600 hover:bg-red-50 transition-colors">✗ ไม่ผ่าน</button>
+                            <input type="hidden" class="gauge-result-input" value="">
+                        </div>
+                        <div class="flex items-center gap-2" data-gauge-row="2">
+                            <span class="text-xs text-gray-400 w-5 text-right shrink-0">3.</span>
+                            <button type="button" class="gauge-pass-btn flex-1 py-2 px-3 rounded-lg border-2 font-bold text-sm border-gray-300 text-gray-500 hover:border-green-500 hover:text-green-600 hover:bg-green-50 transition-colors">✓ ผ่าน</button>
+                            <button type="button" class="gauge-fail-btn flex-1 py-2 px-3 rounded-lg border-2 font-bold text-sm border-gray-300 text-gray-500 hover:border-red-500 hover:text-red-600 hover:bg-red-50 transition-colors">✗ ไม่ผ่าน</button>
+                            <input type="hidden" class="gauge-result-input" value="">
+                        </div>
+                    </div>
+                    <p class="text-center mt-2 text-xs text-gray-400">บันทึก 3 รายการต่อ 1 ครั้งตรวจ</p>
+                </div>
+                </div>
+
+                <!-- Appearance inspection section (สร้างเนื้อหาด้วย js/appearance.js) -->
+                <div id="appearance-input-section" class="hidden"></div>
+
+                <!-- Setup type selector -->
+                <div class="measure-only">
+                    <label class="block text-sm font-medium text-gray-600 mb-1">ประเภทการบันทึก</label>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <button type="button" data-setup-type="" class="setup-type-btn py-2 px-2 rounded-lg border-2 font-bold text-xs border-blue-500 bg-blue-50 text-blue-700 transition-colors">ปกติ</button>
+                        <button type="button" data-setup-type="roll_change" class="setup-type-btn py-2 px-2 rounded-lg border-2 font-bold text-xs border-gray-300 text-gray-500 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition-colors">เปลี่ยนม้วน</button>
+                        <button type="button" data-setup-type="out_of_spec" class="setup-type-btn py-2 px-2 rounded-lg border-2 font-bold text-xs border-gray-300 text-gray-500 hover:border-purple-500 hover:text-purple-600 hover:bg-purple-50 transition-colors">เอาท์สเปค</button>
+                    </div>
+                    <input type="hidden" id="setup-type-value" value="">
+                </div>
+
+                <p id="spec-display" class="measure-only text-xs text-blue-600 font-semibold mt-1 bg-blue-50 p-2 rounded border border-blue-100"></p>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">พนักงาน (Operator)</label>
+                    <select id="operator" required class="w-full p-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- กำลังโหลดรายชื่อ... --</option>
+                    </select>
+                </div>
+                <button type="submit" id="submit-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors">
+                    บันทึกข้อมูล (Save)
+                </button>
+            </form>
+
+            <!-- ตารางข้อมูลย้ายมาอยู่ใต้ฟอร์มบันทึก เพื่อประหยัดพื้นที่ให้กราฟ -->
+            <div class="measure-only mt-6 border-t pt-4 overflow-x-auto">
+                <h3 class="text-sm font-bold text-gray-700 mb-2">ประวัติค่าที่วัดได้ (ล่าสุด)</h3>
+                <table class="min-w-full text-xs text-left text-gray-500">
+                    <thead class="text-gray-700 uppercase bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-2 py-2">เวลา</th>
+                            <th class="px-2 py-2">พนักงาน</th>
+                            <th class="px-2 py-2 text-right">ค่าที่วัด</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ส่วน Dashboard Overview -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- รอบการตรวจวัด (Data Entry): สถานะรอบตรวจรายเครื่อง เรียงตามความเร่งด่วน -->
+            <section id="schedule-panel" class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                <div class="flex items-center justify-between gap-2 px-4 py-3 border-b bg-gradient-to-r from-blue-50 to-white flex-wrap">
+                    <div>
+                        <h2 class="text-md font-bold text-gray-800">📏 รอบการตรวจวัด (Data Entry)</h2>
+                        <p id="schedule-rules-label" class="text-xs text-gray-500">รุ่น 25/32A <b class="text-blue-700">ทุก 2 ชม.</b> · รุ่นอื่น <b class="text-blue-700">ทุก 3 ชม.</b> · ครบทุก Item = 1 รอบ · ตรงเวลา ±15 นาที · ไม่นับเวลาพัก</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+                        <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-full bg-green-500"></span>ตรวจแล้ว</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>ถึงเวลา</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500"></span>เลยกำหนด</span>
+                    </div>
+                </div>
+                <div id="schedule-summary" class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pt-3 text-xs text-gray-600"></div>
+                <div id="schedule-grid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 p-4"></div>
+            </section>
+
+            <!-- ตรวจสภาพภายนอก (Appearance Inspection): สถานะรอบตรวจรายเครื่อง + ประวัติพร้อมรูป -->
+            <section id="appearance-panel" class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                <div class="flex items-center justify-between gap-2 px-4 py-3 border-b bg-gradient-to-r from-indigo-50 to-white flex-wrap">
+                    <div>
+                        <h2 class="text-md font-bold text-gray-800">👁️ ตรวจสภาพภายนอก (Appearance)</h2>
+                        <p class="text-xs text-gray-500"><span id="appearance-checklist-label">บิดงอ/เสียรูป · รอยขีดข่วน</span> — รอบตรวจ <span id="appearance-interval-label" class="font-bold text-indigo-700">ทุก 60 นาที</span></p>
+                    </div>
+                    <div class="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+                        <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-full bg-green-500"></span>ตรวจแล้ว</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-full bg-yellow-400"></span>ใกล้ถึงรอบ</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500"></span>เลยกำหนด</span>
+                        <button type="button" id="appearance-refresh-btn" class="text-indigo-600 hover:text-indigo-800 font-medium" title="โหลดข้อมูลล่าสุด">⟳ รีเฟรช</button>
+                    </div>
+                </div>
+                <div id="appearance-status-grid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 p-4"></div>
+
+                <details id="appearance-history-details" class="border-t group" open>
+                    <summary class="cursor-pointer select-none px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center justify-between">
+                        <span>ประวัติการตรวจ — <span id="appearance-history-scope" class="text-indigo-700">-</span> <span class="font-normal text-xs text-gray-400">(ตามช่วงเวลาที่เลือกด้านล่าง)</span></span>
+                        <span class="text-gray-400 text-xs group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <div class="px-4 pb-4 space-y-4">
+                        <div class="flex items-center justify-between gap-2 flex-wrap">
+                            <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                                <input type="checkbox" id="appearance-history-all" class="rounded"> แสดงทุกเครื่อง
+                            </label>
+                            <span id="appearance-history-loading" class="hidden text-xs text-indigo-600 animate-pulse">กำลังโหลด...</span>
+                        </div>
+                        <p id="appearance-error" class="hidden text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="bg-gray-50 p-3 rounded-lg text-center">
+                                <p class="text-xs text-gray-500">ตรวจทั้งหมด</p>
+                                <p id="appearance-kpi-total" class="text-2xl font-bold text-gray-800">0</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg text-center">
+                                <p class="text-xs text-gray-500">พบปัญหา (NG)</p>
+                                <p id="appearance-kpi-fail" class="text-2xl font-bold text-gray-800">0</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg text-center">
+                                <p class="text-xs text-gray-500">อัตราผ่าน</p>
+                                <p id="appearance-kpi-rate" class="text-2xl font-bold text-gray-800">-</p>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-lg text-center" title="นับเฉพาะช่วงที่เครื่องมีการตรวจ (เวลาปกติ / OT / กะดึก) และหักเวลาพักออก">
+                                <p class="text-xs text-gray-500">ตรวจครบรอบ</p>
+                                <p id="appearance-kpi-coverage" class="text-2xl font-bold text-gray-800">-</p>
+                                <p id="appearance-kpi-coverage-sub" class="text-[10px] text-gray-400">รอบที่ตรวจ/ควรตรวจ</p>
+                            </div>
+                        </div>
+                        <div class="relative h-48 w-full">
+                            <canvas id="appearance-chart"></canvas>
+                        </div>
+                        <div id="appearance-history-list" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+                        <button type="button" id="appearance-history-more" class="hidden w-full py-2 text-xs font-medium text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-50"></button>
+                    </div>
+                </details>
+            </section>
+
+            <div class="flex items-center justify-between border-b pb-2">
+                <h2 class="text-xl font-bold text-gray-800">ภาพรวมคุณภาพ (Quality Overview)</h2>
+                <span id="overview-part-title" class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold"></span>
+            </div>
+
+            <!-- Point color legend -->
+            <div class="flex items-center gap-3 text-xs text-gray-500 bg-white px-3 py-2 rounded-lg border flex-wrap">
+                <span class="font-medium text-gray-600 shrink-0">สัญลักษณ์จุด:</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span>ปกติ</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-full bg-orange-500"></span>หลังเปลี่ยนม้วน</span>
+                <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-full bg-purple-600"></span>หลังตั้งเครื่อง(เอาท์สเปค)</span>
+            </div>
+
+            <!-- Date Range Filter -->
+            <div class="bg-white p-3 rounded-xl shadow-sm border flex flex-wrap items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm font-medium text-gray-600 shrink-0">ช่วงเวลา:</span>
+                <div class="flex gap-1 flex-wrap">
+                    <button class="date-preset-btn px-3 py-1 text-xs rounded-full border font-medium transition-colors" data-days="0">วันนี้</button>
+                    <button class="date-preset-btn px-3 py-1 text-xs rounded-full border font-medium transition-colors" data-days="7">7 วัน</button>
+                    <button class="date-preset-btn px-3 py-1 text-xs rounded-full border font-medium transition-colors" data-days="30">30 วัน</button>
+                    <button class="date-preset-btn active-preset px-3 py-1 text-xs rounded-full border font-medium transition-colors bg-blue-600 text-white border-blue-600" data-days="-1">ทั้งหมด</button>
+                </div>
+                <div class="flex items-center gap-1 ml-auto flex-wrap">
+                    <input type="date" id="date-from" class="text-xs p-1.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <span class="text-gray-400 text-xs">—</span>
+                    <input type="date" id="date-to" class="text-xs p-1.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                    <button id="date-search-btn" class="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors">
+                        <svg id="date-search-icon" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <svg id="date-search-spinner" class="hidden h-3.5 w-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                        </svg>
+                        <span id="date-search-label">ค้นหา</span>
+                    </button>
+                </div>
+            </div>
+            <!-- Loading bar for dashboard refresh -->
+            <div id="dashboard-loading-bar" class="hidden">
+                <div class="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                    <svg class="h-4 w-4 animate-spin shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                    </svg>
+                    <span id="dashboard-loading-text">กำลังค้นหาข้อมูล...</span>
+                    <span id="dashboard-loading-elapsed" class="ml-auto font-mono font-bold text-blue-700"></span>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                    <p class="text-sm text-gray-500">จำนวน (n)</p>
+                    <p id="kpi-count" class="text-2xl font-bold text-gray-800">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                    <p id="kpi-mean-label" class="text-sm text-gray-500">ค่าเฉลี่ย (Mean)</p>
+                    <p id="kpi-mean" class="text-2xl font-bold text-gray-800">-</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border text-center">
+                    <p id="kpi-cp-label" class="text-sm text-gray-500">Cp</p>
+                    <p id="kpi-cp" class="text-2xl font-bold text-blue-600">-</p>
+                </div>
+                <div id="kpi-cpk-card" class="bg-white p-4 rounded-xl shadow-sm border text-center transition-colors">
+                    <p id="kpi-cpk-label" class="text-sm text-gray-500">Cpk</p>
+                    <p id="kpi-cpk" class="text-2xl font-bold text-gray-800">-</p>
+                </div>
+            </div>
+
+            <!-- คอนเทนเนอร์สำหรับรองรับ "หลายกราฟ" -->
+            <div id="charts-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- กราฟแต่ละตัวจะถูกสร้างอัตโนมัติด้วย JavaScript ตรงนี้ -->
+            </div>
+
+        </div>
+    </main>
+
+    <!-- แก้ไขพาธชี้ไปที่โฟลเดอร์ js -->
+    <script src="js/script.js"></script>
+    <script src="js/appearance.js"></script>
+    <script src="js/schedule.js"></script>
+    <script src="js/settings.js"></script>
+</body>
+</html>

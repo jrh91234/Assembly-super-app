@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>H1 Lug&Screw - Login</title>
+  <link rel="icon" href="https://img.icons8.com/color/48/factory.png">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+  <script>
+    // Set device class immediately to prevent FOUC
+    (function(){
+      var d = window.innerWidth >= 768;
+      document.body.classList.add(d ? 'is-desktop' : 'is-mobile');
+    })();
+  </script>
+  <div class="login-wrapper">
+    <!-- Desktop: Left panel with branding -->
+    <div class="login-hero" id="loginHero">
+      <div class="hero-content">
+        <i class="bi bi-gear-wide-connected"></i>
+        <h1>H1 Lug&Screw</h1>
+        <h2>Production Management System</h2>
+        <p>ระบบจัดการการผลิตสำหรับไลน์ H1 Lug&Screw</p>
+        <div class="hero-features">
+          <div class="hero-feature"><i class="bi bi-clipboard-data"></i> กรอกยอดผลิต</div>
+          <div class="hero-feature"><i class="bi bi-wrench"></i> แจ้งซ่อมเครื่องจักร</div>
+          <div class="hero-feature"><i class="bi bi-graph-up"></i> Dashboard & Analytics</div>
+          <div class="hero-feature"><i class="bi bi-gear"></i> จัดการเครื่องจักร 8 เครื่อง</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="login-card">
+      <!-- Mobile Logo (hidden on desktop) -->
+      <div class="login-logo mobile-only">
+        <i class="bi bi-gear-wide-connected"></i>
+        <h4>H1 Lug&Screw</h4>
+        <p>Production Management System</p>
+      </div>
+
+      <!-- Desktop Logo (hidden on mobile) -->
+      <div class="login-logo desktop-only">
+        <h4>เข้าสู่ระบบ</h4>
+        <p>กรอกรหัสพนักงานและ PIN เพื่อเริ่มต้นใช้งาน</p>
+      </div>
+
+      <!-- API URL Config (hidden by default, admin only) -->
+      <div id="apiConfig" class="hidden">
+        <div class="form-group">
+          <label class="form-label">Apps Script URL</label>
+          <input type="url" class="form-input" id="apiUrlInput"
+                 placeholder="วาง URL ของ Apps Script Web App">
+          <button class="btn btn-primary btn-full mt-2" onclick="saveApiUrl()" style="min-height:40px;font-size:14px;">
+            <i class="bi bi-link-45deg"></i> บันทึก URL
+          </button>
+        </div>
+      </div>
+
+      <!-- Login Form -->
+      <div id="loginForm">
+        <div class="form-group">
+          <label class="form-label">รหัสพนักงาน</label>
+          <input type="text" class="form-input" id="employeeId" placeholder="กรอกรหัสพนักงาน"
+                 autocomplete="off" style="text-transform:uppercase;">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">รหัส PIN</label>
+          <!-- Mobile: readonly PIN with numpad -->
+          <input type="password" class="form-input pin-display mobile-only" id="pinInputMobile" maxlength="4"
+                 readonly placeholder="- - - -">
+          <!-- Desktop: direct keyboard input -->
+          <input type="password" class="form-input desktop-only" id="pinInputDesktop" maxlength="4"
+                 placeholder="กรอกรหัส PIN 4 หลัก" inputmode="numeric"
+                 style="font-size:18px;text-align:center;letter-spacing:8px;"
+                 onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+
+        <div id="errorMsg" class="hidden" style="background:#fce8e6;color:#c5221f;padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:12px;"></div>
+
+        <!-- Mobile Numpad -->
+        <div class="numpad mobile-only">
+          <button class="numpad-btn" onclick="addPin('1')">1</button>
+          <button class="numpad-btn" onclick="addPin('2')">2</button>
+          <button class="numpad-btn" onclick="addPin('3')">3</button>
+          <button class="numpad-btn" onclick="addPin('4')">4</button>
+          <button class="numpad-btn" onclick="addPin('5')">5</button>
+          <button class="numpad-btn" onclick="addPin('6')">6</button>
+          <button class="numpad-btn" onclick="addPin('7')">7</button>
+          <button class="numpad-btn" onclick="addPin('8')">8</button>
+          <button class="numpad-btn" onclick="addPin('9')">9</button>
+          <button class="numpad-btn" onclick="clearPin()" style="font-size:16px;"><i class="bi bi-x-lg"></i></button>
+          <button class="numpad-btn" onclick="addPin('0')">0</button>
+          <button class="numpad-btn" onclick="deletePin()" style="font-size:16px;"><i class="bi bi-backspace"></i></button>
+        </div>
+
+        <button class="btn btn-primary btn-full mt-3" onclick="doLogin()" id="loginBtn"
+                style="height:54px;font-size:18px;font-weight:700;">
+          <i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ
+        </button>
+
+        <button onclick="changeApiUrl()" id="apiUrlBtn" style="display:none;margin:12px auto 0;background:none;border:none;color:#5f6368;font-size:12px;cursor:pointer;font-family:inherit;">
+          <i class="bi bi-gear"></i> เปลี่ยน API URL
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    let pinValue = '';
+    const isDesktop = window.innerWidth >= 768;
+
+    // Apply device classes
+    document.body.classList.toggle('is-desktop', isDesktop);
+    document.body.classList.toggle('is-mobile', !isDesktop);
+
+    // Initialize - go straight to login
+    (function init() {
+      // Auto-redirect if already logged in
+      if (Auth.isLoggedIn()) {
+        window.location.href = 'pages/' + Auth.getHomePage() + '.html';
+        return;
+      }
+
+      // Focus employee ID input
+      setTimeout(() => {
+        document.getElementById('employeeId').focus();
+      }, 100);
+    })();
+
+    function saveApiUrl() {
+      const url = document.getElementById('apiUrlInput').value.trim();
+      if (!url) {
+        UI.showToast('กรุณาวาง URL', 'warning');
+        return;
+      }
+      API.setBaseUrl(url);
+      document.getElementById('apiConfig').classList.add('hidden');
+      document.getElementById('loginForm').classList.remove('hidden');
+      UI.showToast('บันทึก URL เรียบร้อย', 'success');
+    }
+
+    function changeApiUrl() {
+      document.getElementById('apiUrlInput').value = API.getBaseUrl();
+      document.getElementById('apiConfig').classList.remove('hidden');
+      document.getElementById('loginForm').classList.add('hidden');
+    }
+
+    // Mobile numpad functions
+    function addPin(digit) {
+      if (pinValue.length < 4) {
+        pinValue += digit;
+        document.getElementById('pinInputMobile').value = pinValue;
+        hideError();
+      }
+    }
+
+    function deletePin() {
+      pinValue = pinValue.slice(0, -1);
+      document.getElementById('pinInputMobile').value = pinValue;
+    }
+
+    function clearPin() {
+      pinValue = '';
+      document.getElementById('pinInputMobile').value = '';
+    }
+
+    function getPin() {
+      if (isDesktop) {
+        return document.getElementById('pinInputDesktop').value;
+      }
+      return pinValue;
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+
+    function hideError() {
+      document.getElementById('errorMsg').classList.add('hidden');
+    }
+
+    async function doLogin() {
+      const employeeId = document.getElementById('employeeId').value.trim().toUpperCase();
+      const pin = getPin();
+
+      if (!employeeId) { showError('กรุณากรอกรหัสพนักงาน'); return; }
+      if (pin.length !== 4) { showError('กรุณากรอกรหัส PIN 4 หลัก'); return; }
+
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:3px;"></div> กำลังเข้าสู่ระบบ...';
+
+      try {
+        // Logging in again is harmless (it just mints a fresh session token), so
+        // this request is safe to replay when Apps Script drops or stalls the
+        // redirect hop that carries the response.
+        const result = await API.post('login', { employeeId, pin }, { retries: 2 });
+        if (result.success) {
+          Auth.setToken(result.token);
+          Auth.setUser(result.user);
+          // Keep the spinner up while the browser navigates away.
+          btn.dataset.navigating = '1';
+          window.location.href = 'pages/' + Auth.getHomePage() + '.html';
+          return;
+        }
+        showError(result.message);
+      } catch (err) {
+        const timedOut = err && String(err.message || '').indexOf('หมดเวลา') === 0;
+        showError(timedOut
+          ? 'เชื่อมต่อ server ช้าผิดปกติ กรุณาลองใหม่อีกครั้ง'
+          : 'เชื่อมต่อ server ไม่ได้ - ตรวจสอบสัญญาณอินเทอร์เน็ต');
+      } finally {
+        if (!btn.dataset.navigating) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบ';
+        }
+      }
+    }
+
+    // Desktop: Enter key on employee ID field
+    document.getElementById('employeeId').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && isDesktop) {
+        document.getElementById('pinInputDesktop').focus();
+      }
+    });
+
+    // Hidden: tap logo 5 times to show API URL config (admin only)
+    let logoTapCount = 0;
+    let logoTapTimer = null;
+    document.querySelectorAll('.login-logo').forEach(el => {
+      el.addEventListener('click', function() {
+        logoTapCount++;
+        clearTimeout(logoTapTimer);
+        logoTapTimer = setTimeout(() => { logoTapCount = 0; }, 2000);
+        if (logoTapCount >= 5) {
+          logoTapCount = 0;
+          document.getElementById('apiUrlBtn').style.display = 'block';
+          document.getElementById('apiUrlInput').value = API.getBaseUrl();
+          document.getElementById('apiConfig').classList.remove('hidden');
+          UI.showToast('โหมดตั้งค่า API URL', 'info');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

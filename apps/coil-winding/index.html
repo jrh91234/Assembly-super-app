@@ -1,0 +1,2766 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CWM Production System - v3.56 Modular Edition</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    
+    <!-- เพิ่มไลบรารีเวลา Flatpickr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css?v=3.57">
+</head>
+<body class="bg-gray-100 min-h-screen font-sans pb-10">
+
+    <!-- 🌟 LOGIN MODAL (Full Screen Overlay) 🌟 -->
+    <div id="login-modal" class="fixed inset-0 bg-gray-900 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 transform transition-all">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 text-blue-600 rounded-full mb-4 text-3xl shadow-sm">🏭</div>
+                <h2 class="text-2xl font-black text-gray-800">CWM System</h2>
+                <p class="text-gray-500 text-sm mt-1">กรุณาเข้าสู่ระบบเพื่อใช้งาน</p>
+            </div>
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">ชื่อผู้ใช้ (Username)</label>
+                    <input type="text" id="login-username" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-800 bg-gray-50 focus:bg-white" placeholder="กรอกชื่อผู้ใช้">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">รหัสผ่าน (Password)</label>
+                    <input type="password" id="login-password" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-800 bg-gray-50 focus:bg-white" placeholder="••••••••">
+                </div>
+                <div id="login-error" class="hidden bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 text-center font-medium"></div>
+                <button type="submit" id="btn-login" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-lg shadow-md hover:shadow-lg transition-all flex justify-center items-center gap-2">
+                    เข้าสู่ระบบ
+                </button>
+            </form>
+            <div class="mt-6 text-center text-xs text-gray-400">v3.56 Authentication System</div>
+        </div>
+    </div>
+
+    <!-- 🌟 สคริปต์ป้องกันการค้างหน้า Login หากเคยล็อคอินแล้ว 🌟 -->
+    <script>
+        if (localStorage.getItem('CWM_AUTH_USER')) {
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+    </script>
+    
+    <!-- Navbar แบบ Hamberger Menu -->
+   <!-- Navbar แบบ Hamberger Menu -->
+    <nav class="bg-white shadow-md sticky top-0 z-30 print-hide">
+        <div class="max-w-6xl lg:max-w-none mx-auto px-4 lg:px-6">
+            <div class="flex justify-between items-center py-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🏭</span>
+                    <span class="font-bold text-lg text-blue-800 tracking-wide">CWM System</span>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <!-- แสดงข้อมูลผู้ใช้ที่ Login (Desktop) -->
+                    <div class="hidden md:flex items-center gap-3 text-right">
+                        <div class="flex flex-col">
+                            <span id="nav-user-name" class="text-sm font-bold text-gray-800 leading-tight">-</span>
+                            <span id="nav-user-role" class="text-[10px] text-blue-600 font-bold uppercase bg-blue-50 px-2 rounded-full inline-block mt-0.5">-</span>
+                        </div>
+                        <button onclick="window.openChangePasswordModal()" class="text-xl hover:scale-110 transition-transform cursor-pointer bg-gray-50 hover:bg-blue-50 p-2 rounded-full border border-gray-200" title="เปลี่ยนรหัสผ่านของฉัน">🔑</button>
+                        
+                        <!-- 🌟 [NEW] ปุ่ม งานรอ Sort (สำหรับ Desktop) -->
+                        <button id="btn-desktop-sort" onclick="window.open('https://jrh91234.github.io/CWM-sorting-system-/', '_blank')" class="hidden bg-pink-100 hover:bg-pink-200 text-pink-700 border border-pink-300 px-3 py-1.5 rounded-lg text-sm font-bold transition-all items-center gap-1 shadow-sm">
+                            🔍 งานรอ Sort ↗️
+                        </button>
+                    </div>
+                    
+                    <!-- ปุ่ม Hamburger -->
+                    <button onclick="window.toggleMenu()" class="text-gray-600 hover:text-blue-600 focus:outline-none p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Dropdown Menu -->
+        <div id="dropdown-menu" class="hidden absolute left-0 right-0 bg-white shadow-xl border-t border-gray-100 flex flex-col z-20 max-h-[calc(100vh-80px)] overflow-y-auto">
+            <!-- เมนูหลัก -->
+            <button onclick="window.switchTab('inbox'); window.toggleMenu()" id="tab-inbox" class="hidden py-4 px-6 text-left text-purple-600 font-bold border-l-4 border-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors text-lg relative">📬 Inbox <span id="inbox-badge-mobile" class="hidden bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-1 align-top"></span></button>
+            <button onclick="window.switchTab('form'); window.toggleMenu()" id="tab-form" class="hidden py-4 px-6 text-left text-blue-600 font-bold border-l-4 border-blue-600 bg-blue-50 hover:bg-blue-50 transition-colors text-lg">📝 บันทึกผลิต</button>
+            <button onclick="window.switchTab('planning'); window.toggleMenu()" id="tab-planning" class="hidden py-4 px-6 text-left text-gray-500 border-l-4 border-transparent hover:bg-gray-50 transition-colors text-lg">📅 วางแผน (Plan)</button>
+            <button onclick="window.switchTab('dashboard'); window.toggleMenu()" id="tab-dashboard" class="hidden py-4 px-6 text-left text-gray-500 border-l-4 border-transparent hover:bg-gray-50 transition-colors text-lg">📊 Dashboard</button>
+            <button onclick="window.toggleMenu(); window.location.href='https://jrh91234.github.io/CMW-rawmat/';" id="tab-rw" class="hidden py-4 px-6 text-left text-gray-500 border-l-4 border-transparent hover:bg-gray-50 transition-colors text-lg w-full">📦 รับเข้า (RW) ↗️</button>
+            
+            <!-- เมนู จัดการพาเลท (Packing) -->
+            <button onclick="window.openPackingModal(); window.toggleMenu()" id="tab-packing" class="hidden py-4 px-6 text-left text-indigo-600 font-bold border-l-4 border-transparent hover:bg-indigo-50 transition-colors text-lg border-t border-gray-100">📦 จัดการพาเลท (Packing)</button>
+
+            <!-- เมนู แจ้งซ่อมและเคลม RTV -->
+            <button onclick="window.openMaintenanceModal(); window.toggleMenu()" id="tab-maint" class="hidden py-4 px-6 text-left text-orange-600 font-bold border-l-4 border-transparent hover:bg-orange-50 transition-colors text-lg border-t border-gray-100">🛠️ แจ้งซ่อมเครื่องจักร</button>
+            <button onclick="window.switchTab('parts'); window.toggleMenu()" id="tab-parts" class="hidden py-4 px-6 text-left text-cyan-600 font-bold border-l-4 border-transparent hover:bg-cyan-50 transition-colors text-lg border-t border-gray-100">⚙️ จัดการอะไหล่เครื่องจักร</button>
+            <button onclick="window.switchTab('rtv'); window.toggleMenu()" id="tab-rtv" class="hidden py-4 px-6 text-left text-teal-600 font-bold border-l-4 border-transparent hover:bg-teal-50 transition-colors text-lg border-t border-gray-100">📦 บันทึกงานเคลม (RTV)</button>
+            <button onclick="window.switchTab('dailycheck'); window.toggleMenu()" id="tab-dailycheck" class="hidden py-4 px-6 text-left text-green-700 font-bold border-l-4 border-transparent hover:bg-green-50 transition-colors text-lg border-t border-gray-100">✅ Daily Check (OK 1st Part)</button>
+            <button onclick="window.switchTab('scrap'); window.toggleMenu()" id="tab-scrap" class="hidden py-4 px-6 text-left text-amber-700 font-bold border-l-4 border-transparent hover:bg-amber-50 transition-colors text-lg border-t border-gray-100">🗑️ ทิ้งขยะ (Scrap List)</button>
+
+            <!-- [NEW] เมนู งานรอ Sort (Mobile) -->
+            <button onclick="window.toggleMenu(); window.open('https://jrh91234.github.io/CWM-sorting-system-/', '_blank');" id="tab-sort" class="hidden py-4 px-6 text-left text-pink-600 font-bold border-l-4 border-transparent hover:bg-pink-50 transition-colors text-lg border-t border-gray-100 w-full">🔍 ระบบงานรอ Sort ↗️</button>
+            
+            <!-- เมนู Cost Management (Admin Only) -->
+            <button onclick="window.switchTab('cost'); window.toggleMenu()" id="tab-cost" class="hidden py-4 px-6 text-left text-emerald-600 font-bold border-l-4 border-transparent hover:bg-emerald-50 transition-colors text-lg border-t border-gray-100">💰 บริหารต้นทุน</button>
+
+            <!-- เมนู Admin -->
+            <button onclick="window.openAdminPanel(); window.toggleMenu()" id="tab-admin" class="hidden py-4 px-6 text-left text-purple-600 font-bold border-l-4 border-transparent hover:bg-purple-50 transition-colors text-lg border-t border-gray-100">🛡️ จัดการระบบ (Admin)</button>
+            
+            <!-- ข้อมูล User บนมือถือ & ปุ่ม Logout -->
+            <div class="md:hidden py-3 px-6 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+                <div>
+                    <span class="text-xs text-gray-500">ผู้ใช้งานปัจจุบัน:</span>
+                    <div class="font-bold text-gray-800" id="nav-user-name-mobile">-</div>
+                    <div class="text-xs text-blue-600 font-bold" id="nav-user-role-mobile">-</div>
+                </div>
+                <button onclick="window.openChangePasswordModal(); window.toggleMenu()" class="text-2xl bg-white p-2 rounded-lg shadow-sm border border-gray-200 hover:bg-blue-50 transition-colors">🔑</button>
+            </div>
+            
+            <button onclick="window.logout()" class="py-4 px-6 text-left text-red-600 font-bold border-l-4 border-transparent hover:bg-red-50 transition-colors text-lg border-t border-gray-100 w-full">🚪 ออกจากระบบ (Logout)</button>
+        </div>
+    </nav>
+    
+    <!-- SECTION 1: FORM -->
+    <main id="section-form" class="max-w-4xl mx-auto p-4 space-y-4 hidden print-hide">
+        <div class="bg-white rounded-xl shadow-lg p-4 border-t-4 border-blue-500">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-lg font-bold text-gray-800">บันทึกยอดการผลิต (Batch)</h1>
+                <span class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-500">v3.56</span>
+            </div>
+            <form id="productionForm" class="space-y-4">
+               <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-blue-800 mb-1">📅 วันที่ <span class="text-[10px] text-gray-500 font-normal">(ตัดวัน 08:00น.)</span></label>
+                        <input type="date" id="productionDate" name="productionDate" required class="w-full p-2 border rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-blue-800 mb-1">👤 ผู้บันทึก</label>
+                        <div class="flex gap-1">
+                            <select id="recorder" name="recorder" class="w-full p-2 border rounded text-sm bg-white" required>
+                                <option value="">เลือกพนักงาน...</option>
+                            </select>
+                            <button type="button" onclick="window.manageRecorders()" class="flex-none bg-white border border-blue-300 text-blue-600 px-2 rounded hover:bg-blue-50" title="จัดการชื่อพนักงาน">⚙️</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-blue-800 mb-1">กะ</label>
+                        <div class="flex items-center gap-2">
+                            <select id="shift" name="shift" class="w-20 p-2 border rounded text-sm">
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                            </select>
+                            <div class="flex flex-col text-[10px]">
+                                <label><input type="radio" name="shift_type_toggle" value="Day" onclick="window.updateHourSlots('Day')"> เช้า</label>
+                                <label><input type="radio" name="shift_type_toggle" value="Night" onclick="window.updateHourSlots('Night')"> ดึก</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-blue-800 mb-1">ช่วงเวลา</label>
+                        <select id="hourSlot" name="hourSlot" required class="w-full p-2 border rounded text-sm"></select>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between items-end mt-4 mb-2">
+                    <h3 class="font-bold text-gray-700 text-sm">รายการผลิต</h3>
+                    <button type="button" onclick="window.openAssignModal()" class="text-xs bg-indigo-50 text-indigo-700 font-bold py-1.5 px-3 rounded border border-indigo-200 hover:bg-indigo-100 flex items-center gap-1 shadow-sm">
+                        <span>⚙️</span> ตั้งค่าเครื่องจักร (Assign)
+                    </button>
+                </div>
+
+                <div id="batchList" class="space-y-3"></div>
+                
+                <button type="button" onclick="window.addBatchRow()" class="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 font-bold hover:border-blue-400 hover:text-blue-500 mt-2">
+                    + เพิ่มรายการ (Add Model/Machine)
+                </button>
+                
+                <hr class="border-gray-200">
+                
+                <button type="submit" id="submitBtn" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-colors">
+                    💾 บันทึกข้อมูลทั้งหมด
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- SECTION 2: PLANNING (Job Order) -->
+    <main id="section-planning" class="max-w-6xl mx-auto p-4 space-y-4 hidden print-hide">
+        <div class="bg-white rounded-xl shadow-lg p-4 border-t-4 border-indigo-500">
+            <h1 class="text-lg font-bold text-gray-800 mb-1">📅 วางแผนการผลิต (Job Order)</h1>
+            <p class="text-xs text-gray-500 mb-4">ข้อมูลขั้นต่ำ: เลข Job Order · รุ่นสินค้า · จำนวนเป้าหมาย — เว้นช่องเลข Job Order ว่างไว้ ระบบจะสร้างให้อัตโนมัติ (รูปแบบ JO-YYMM-001)</p>
+            <form id="planningForm" class="space-y-4">
+                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-100 grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="block text-xs font-bold text-indigo-800 mb-1">🔖 เลข Job Order</label>
+                        <input type="text" id="planJobOrder" name="planJobOrder" placeholder="เว้นว่าง = สร้างอัตโนมัติ" class="w-full p-3 border rounded-lg font-bold uppercase">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-indigo-800 mb-1">📅 วันที่แผน <span class="text-[10px] text-gray-500 font-normal">(ตัดวัน 08:00น.)</span></label>
+                        <input type="date" id="planDate" name="planDate" required class="w-full p-3 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-indigo-800 mb-1">🏷️ รุ่นสินค้า (Model) *</label>
+                        <select id="planProduct" name="planProduct" required class="w-full p-3 border rounded-lg"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-indigo-800 mb-1">🔢 จำนวนเป้าหมาย (ชิ้น) *</label>
+                        <input type="number" id="planQty" name="planQty" min="1" required placeholder="Target Qty (ชิ้น)" class="w-full p-3 border rounded-lg text-center font-bold">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-indigo-800 mb-1">🕐 กะการผลิต</label>
+                        <select id="planShift" name="planShift" class="w-full p-3 border rounded-lg">
+                            <option value="All">All Shifts</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" id="planSubmitBtn" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-colors">
+                        💾 บันทึกแผน / สร้าง Job Order
+                    </button>
+                    <button type="button" id="planCancelEditBtn" onclick="window.cancelEditJobOrder()" class="hidden px-4 bg-gray-200 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-300 transition-colors">
+                        ยกเลิกแก้ไข
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- รายการ Job Order + ความคืบหน้า -->
+        <div class="bg-white rounded-xl shadow-lg border-t-4 border-indigo-400 overflow-hidden">
+            <div class="p-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center gap-2 md:justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-gray-800">📋 รายการ Job Order</h2>
+                    <p id="joSummary" class="text-[11px] text-gray-500 mt-0.5">-</p>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <select id="joFilterStatus" class="p-2 border rounded-lg text-sm">
+                        <option value="Active">กำลังดำเนินการ</option>
+                        <option value="All">ทั้งหมด</option>
+                        <option value="Open">รอผลิต</option>
+                        <option value="In Progress">กำลังผลิต</option>
+                        <option value="Completed">ผลิตครบแล้ว</option>
+                        <option value="Closed">ปิดงาน</option>
+                        <option value="Cancelled">ยกเลิก</option>
+                    </select>
+                    <input type="text" id="joFilterKeyword" placeholder="🔍 ค้นหา Job Order / รุ่น" class="p-2 border rounded-lg text-sm flex-1 md:flex-none md:w-56">
+                    <button type="button" id="joRefreshBtn" class="px-3 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-sm font-bold hover:bg-indigo-100">🔄 รีเฟรช</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-600 text-[11px] uppercase font-bold border-b">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Job Order</th>
+                            <th class="px-3 py-2 text-left">วันที่แผน / กะ</th>
+                            <th class="px-3 py-2 text-left">รุ่นสินค้า</th>
+                            <th class="px-3 py-2 text-right">เป้า</th>
+                            <th class="px-3 py-2 text-right">ผลิตแล้ว (FG)</th>
+                            <th class="px-3 py-2 text-right">NG สุทธิ</th>
+                            <th class="px-3 py-2 text-right">รอ Sorting</th>
+                            <th class="px-3 py-2 text-right">รวมนับได้</th>
+                            <th class="px-3 py-2 text-right">คงเหลือ</th>
+                            <th class="px-3 py-2 text-center">ความคืบหน้า</th>
+                            <th class="px-3 py-2 text-center">สถานะ</th>
+                            <th class="px-3 py-2 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="joTableBody" class="divide-y divide-gray-100">
+                        <tr><td colspan="9" class="p-6 text-center text-gray-400 text-sm">กด "รีเฟรช" เพื่อโหลดรายการ Job Order</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- SECTION: RTV (Return To Vendor / Customer Claim) -->
+    <main id="section-rtv" class="max-w-3xl mx-auto p-4 space-y-4 hidden print-hide">
+        <div class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-teal-500">
+            <h1 class="text-xl font-bold text-gray-800 mb-2">📦 บันทึกงานเคลม (RTV / Return to Vendor)</h1>
+            <p class="text-sm text-gray-500 mb-6">บันทึกข้อมูลสินค้า NG ที่ถูกตีกลับจากลูกค้าหรือแผนกอื่น</p>
+            
+            <form id="rtvForm" class="space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-teal-800 mb-1">📅 วันที่รับคืน</label>
+                        <input type="date" id="rtvDate" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-teal-800 mb-1">👤 ผู้บันทึก (QC/Production)</label>
+                        <input type="text" id="rtvRecorder" readonly class="w-full p-3 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-teal-800 mb-1">รุ่นสินค้า (Product)</label>
+                        <select id="rtvProduct" required class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500">
+                            <option value="S1B29288-JR (10A)">S1B29288-JR (10A)</option>
+                            <option value="S1B71819-JR (16A)">S1B71819-JR (16A)</option>
+                            <option value="S1B29292-JR (20A)">S1B29292-JR (20A)</option>
+                            <option value="51207080HC-JR (25/32A)">51207080HC-JR (25/32A)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-teal-800 mb-1">จำนวนที่เคลม (ชิ้น)</label>
+                        <input type="number" id="rtvQty" required min="1" placeholder="0" class="w-full p-3 border border-gray-300 rounded-lg text-center font-bold text-red-600 focus:ring-2 focus:ring-teal-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-teal-800 mb-1">อาการเสียที่พบ (Defect Details)</label>
+                    <select id="rtvRemark" required class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-teal-500">
+                        <option value="">-- เลือกอาการเสีย --</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-teal-800 mb-1">เอกสารอ้างอิงลูกค้า (Customer Ref.)</label>
+                    <input type="text" id="rtvCustomerRef" placeholder="เช่น เลขที่ใบเคลม, PO, Invoice..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500">
+                </div>
+
+                <button type="submit" id="btn-save-rtv" class="w-full bg-teal-600 text-white font-bold py-3.5 rounded-lg shadow-md hover:bg-teal-700 transition-all text-lg">
+                    💾 บันทึกข้อมูล RTV
+                </button>
+            </form>
+        </div>
+    </main>
+    
+    <!-- SECTION 3: DASHBOARD -->
+    <main id="section-dashboard" class="max-w-6xl mx-auto p-4 space-y-6 hidden">
+         <!-- หัวกระดาษเวลาพิมพ์ -->
+         <div id="print-header">
+             <h1 class="text-2xl font-bold text-gray-800">CWM Production Report</h1>
+             <p class="text-gray-600" id="print-date-subtitle">ข้อมูลการผลิต</p>
+         </div>
+
+         <div class="bg-white p-4 rounded-xl shadow-md border-t-4 border-indigo-500 print-hide">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-3">
+                <h2 class="text-gray-700 font-bold text-sm mb-2 lg:mb-0 print-hide">📅 ตัวเลือกการกรอง <span class="text-xs font-normal text-gray-500">(ดึงข้อมูลตั้งแต่ 08:00น. ถึง 08:00น. ของอีกวัน)</span><span class="text-xs font-normal text-blue-500 ml-2 border-l pl-2 border-gray-300">💡 หมุนลูกกลิ้งเมาส์/บีบนิ้วเพื่อซูมกราฟ</span></h2>
+                
+                <div class="flex flex-wrap gap-2 w-full lg:w-auto print-hide">
+                    <!-- 🌟 เพิ่มปุ่มให้ Admin กดตั้งค่าการซ่อนกราฟ 🌟 -->
+                    <button id="btn-widget-manager" onclick="window.openWidgetManager()" class="hidden flex-1 lg:flex-none bg-gray-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-gray-700 transition-colors shadow-sm items-center justify-center gap-1">
+                        👁️ ซ่อน/แสดงกราฟ
+                    </button>
+                    
+                    <!-- 🌟 เพิ่มปุ่ม TV Mode ตรงนี้ 🌟 -->
+                    <button onclick="window.startTVMode()" class="flex-1 lg:flex-none bg-purple-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-purple-700 transition-colors shadow-sm flex items-center justify-center gap-1">
+                        📺 TV Mode
+                    </button>
+
+                    <!-- เพิ่มปุ่มสรุปงานซ่อมตรงนี้ -->
+                    <button onclick="window.openDailySummaryModal()" class="flex-1 lg:flex-none bg-amber-500 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-amber-600 transition-colors shadow-sm flex items-center justify-center gap-1">
+                        📋 สรุปงานซ่อม/RTV
+                    </button>
+
+                    <button onclick="window.openAutoReport()" class="flex-1 lg:flex-none bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-1">
+                        🤖 Auto Report (AI Summary)
+                    </button>
+                    <button onclick="window.exportCSV()" class="flex-1 lg:flex-none bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-green-700 transition-colors shadow-sm flex items-center justify-center gap-1">
+                        📗 ดาวน์โหลด Excel
+                    </button>
+                    <button onclick="window.openSortingTimestampQuery()" class="flex-1 lg:flex-none bg-pink-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-pink-700 transition-colors shadow-sm flex items-center justify-center gap-1">
+                        📦 ดึงตาม Timestamp
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-3 items-end print-hide">
+                <input type="date" id="startDate" class="w-full md:w-auto p-2 border rounded text-sm">
+                <input type="date" id="endDate" class="w-full md:w-auto p-2 border rounded text-sm">
+                <button onclick="window.toggleAllTime()" id="btnAllTime" class="w-full md:w-auto px-3 py-2 border rounded text-sm font-bold transition-colors bg-white text-gray-600 border-gray-300 hover:bg-amber-50">All Time</button>
+                <div class="w-full md:w-auto flex items-center gap-1 p-1.5 border rounded bg-white" title="เปลี่ยนมุมมองของทุกกราฟที่มีแกนเวลาพร้อมกัน">
+                    <span class="text-[11px] font-bold text-gray-600 whitespace-nowrap">📅 ทุกกราฟ:</span>
+                    <div class="chart-period-switch print-hide" data-period-chart="__all" title="ดูข้อมูลรายวัน / สัปดาห์ / เดือน / ไตรมาส / ปี"></div>
+                </div>
+                <select id="filterShift" class="w-full md:w-auto p-2 border rounded text-sm">
+                    <option value="All">All Shift</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                </select>
+                <select id="filterShiftType" class="w-full md:w-auto p-2 border rounded text-sm">
+                    <option value="All">All Type</option>
+                    <option value="Day">Day</option>
+                    <option value="Night">Night</option>
+                </select>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <!-- ใช้ safeLoadDashboard ป้องกันปัญหา Cache และไฟล์พัง -->
+                    <button onclick="safeLoadDashboard()" class="flex-1 bg-indigo-600 text-white px-4 py-2 rounded text-sm font-bold shadow-md hover:bg-indigo-700 active:bg-indigo-800 transition-colors">🔍 ค้นหา</button>
+                    <!-- ปุ่มสำหรับสลับ Layout -->
+                    <button onclick="document.getElementById('debug-panel').classList.remove('hidden'); document.getElementById('debug-output').innerText='กำลังกดปุ่มสลับ Layout...'; window.toggleLayout()" id="layoutBtn" class="flex-1 bg-white text-indigo-600 border border-indigo-200 px-4 py-2 rounded text-sm font-bold shadow-sm hover:bg-indigo-50 transition-colors">🔀 Layout: คู่</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="dashboard-loader" class="hidden text-center py-10">
+            <div class="loader mx-auto"></div>
+            <p class="text-gray-500 font-medium mt-2">กำลังประมวลผลข้อมูล...</p>
+            <p id="loader-query-info" class="text-indigo-600 font-bold text-sm mt-1"></p>
+            <p id="loader-timer" class="text-gray-400 text-xs mt-1 tabular-nums"></p>
+        </div>
+
+        <div id="debug-panel" class="hidden bg-red-50 border border-red-200 p-4 rounded-xl shadow-inner mb-4 print-hide">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-red-800 font-bold text-sm">🛑 ระบบ Debug & Logs</h3>
+                <button onclick="document.getElementById('debug-panel').classList.add('hidden')" class="text-red-500 hover:bg-red-200 px-2 rounded font-bold">ปิด</button>
+            </div>
+            <pre id="debug-output" class="text-[10px] md:text-xs text-red-900 overflow-auto max-h-64 whitespace-pre-wrap font-mono bg-white p-2 rounded border border-red-100"></pre>
+        </div>
+        
+        <!-- 🌟 เพิ่ม ID เข้าไปใน Widget ทุกตัวเพื่อให้คุมเปิด/ปิดได้ 🌟 -->
+        <div id="dashboard-content" class="space-y-6 pb-20">
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div id="card-stat-target" class="widget-card p-4 border-l-4 border-indigo-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">TARGET (PLAN)</p>
+                            <p id="stat-target" class="text-2xl font-bold text-indigo-600 mt-1">0</p>
+                        </div>
+                        <div class="bg-indigo-50 p-2 rounded-full">🎯</div>
+                    </div>
+                </div>
+                <div id="card-stat-fg" class="widget-card p-4 border-l-4 border-blue-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">TOTAL FG</p>
+                            <p id="stat-fg" class="text-2xl font-bold text-blue-600 mt-1">0</p>
+                            <p id="stat-fg-sub" class="text-xs text-gray-400">ชิ้น</p>
+                        </div>
+                        <div class="bg-blue-50 p-2 rounded-full">📦</div>
+                    </div>
+                </div>
+                <div id="card-stat-ach" class="widget-card p-4 border-l-4 border-orange-500">
+                    <p class="text-xs text-gray-400 font-bold uppercase">% ACH</p>
+                    <p id="stat-achievement" class="text-2xl font-bold text-orange-600 mt-1">0%</p>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div id="progress-achievement" class="bg-orange-600 h-2.5 rounded-full" style="width: 0%"></div></div>
+                </div>
+                <div id="card-stat-ng" class="widget-card p-4 border-l-4 border-red-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">TOTAL NG</p>
+                            <p id="stat-ng" class="text-2xl font-bold text-red-600 mt-1">0</p>
+                            <p id="stat-ng-sub" class="text-xs text-gray-500">(0.00 Kg)</p>
+                        </div>
+                        <div class="bg-red-50 p-2 rounded-full">🗑️</div>
+                    </div>
+                </div>
+                <div id="card-stat-yield" class="widget-card p-4 border-l-4 border-green-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">% YIELD</p>
+                            <p id="stat-yield" class="text-2xl font-bold text-green-600 mt-1">0%</p>
+                            <p id="stat-yield-sub" class="text-xs text-gray-400">ถ่วงน้ำหนัก Kg</p>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded-full">📈</div>
+                    </div>
+                </div>
+                <div id="card-stat-uph" class="widget-card p-4 border-l-4 border-teal-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs text-gray-400 font-bold uppercase">UPH (Avg Speed)</p>
+                            <p id="stat-uph" class="text-2xl font-bold text-teal-600 mt-1">0</p>
+                        </div>
+                        <div class="bg-teal-50 p-2 rounded-full">🚀</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="sortable-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- กราฟและตาราง -->
+                <div id="card-fg-model" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <h3 class="font-bold text-gray-700 text-sm">📦 FG breakdown</h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto" id="fgModelList"></div>
+                </div>
+                
+                <div id="card-job-orders" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <h3 class="font-bold text-gray-700 text-sm">📋 Job Order (แผนการผลิต)</h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto" id="jobOrderDashList"></div>
+                </div>
+
+                <div id="card-pareto" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-bold text-gray-700 text-sm">📉 NG Analysis (Pareto)</h3>
+                            <select id="paretoViewSelector" onchange="if(typeof window.renderCharts === 'function') window.renderCharts(currentDashboardData);" class="text-[10px] border rounded p-1 text-gray-600 bg-white hover:bg-blue-50 print-hide">
+                                <option value="symptom">ตามอาการเสีย</option>
+                                <option value="model">ตามรุ่น</option>
+                                <option value="machine">ตามเครื่อง</option>
+                            </select>
+                            <select id="paretoMachineSelector" class="text-[10px] border rounded p-1 text-gray-600 bg-white hover:bg-blue-50 print-hide" onchange="if(typeof currentDashboardData!=='undefined') window.renderCharts(currentDashboardData)">
+                                <option value="all">ทุกเครื่อง</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full min-h-[250px]"><canvas id="paretoChart"></canvas></div>
+                </div>
+
+                <div id="card-simulator" class="widget-card p-4 h-[350px] print-hide">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <h3 class="font-bold text-gray-700 text-sm">🔮 Yield Simulator</h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 flex flex-col h-full overflow-hidden">
+                        <div class="flex items-center gap-2 mb-2">
+                            <select id="simMachineSelector" onchange="window.renderSimulator(currentDashboardData)" class="text-[11px] border rounded p-1 text-gray-600 bg-white">
+                                <option value="all">ทุกเครื่อง (รวม)</option>
+                            </select>
+                            <span class="text-xs text-gray-500">ติ๊กเลือกอาการ NG เพื่อจำลอง % Yield</span>
+                        </div>
+                        <div id="simulator-checkboxes" class="flex-1 overflow-y-auto mb-3 border p-2 rounded-lg bg-gray-50 grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-1 text-xs shadow-inner content-start"></div>
+                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-xl border border-blue-100 shadow-sm mt-auto">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-bold text-gray-700 text-sm">New Yield Rate:</span>
+                                <span id="sim-yield" class="font-bold text-green-600 text-xl">0.00%</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-gray-600 font-medium">ยอด NG ที่เซฟได้:</span>
+                                <span id="sim-ng-saved" class="font-bold text-red-500">0 ชิ้น</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="card-model-analysis" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <div class="flex flex-col gap-1">
+                            <h3 class="font-bold text-gray-700 text-sm flex items-center gap-2">📊 Model Analysis</h3>
+                            <div class="flex gap-1">
+                                <select id="modelViewBySelector" onchange="window.renderModelChart()" class="text-[10px] border rounded p-1 text-blue-700 bg-blue-50 font-bold print-hide">
+                                    <option value="model">📌 By Model</option>
+                                    <option value="rawmat">🧵 By Raw Mat</option>
+                                </select>
+                                <select id="modelChartSelector" onchange="window.renderModelChart()" class="text-[10px] border rounded p-1 text-gray-600 bg-white print-hide">
+                                    <option value="yield">% Yield</option>
+                                    <option value="ng_rate">% NG Rate</option>
+                                    <option value="ng_pcs">NG (ชิ้น)</option>
+                                    <option value="ng_kg">NG (Kg)</option>
+                                    <option value="ng_both">NG (ชิ้น & Kg)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full min-h-[250px]"><canvas id="yieldModelChart"></canvas></div>
+                </div>
+                
+                <div id="card-yield-machine" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <h3 class="font-bold text-gray-700 text-sm">% Yield by Machine</h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full min-h-[250px]"><canvas id="yieldMachineChart"></canvas></div>
+                </div>
+
+                <div id="card-daily-output" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <div class="flex flex-col gap-1">
+                            <h3 class="font-bold text-gray-700 text-sm flex items-center gap-2">📊 Daily Output</h3>
+                            <div class="flex gap-1 mt-1 flex-wrap">
+                                <select id="dailyOutputModelSelector" onchange="window.renderDailyOutputChart()" class="text-[10px] border rounded p-1 text-gray-600 bg-white print-hide">
+                                    <option value="all">ทุกรุ่น (รวม)</option>
+                                </select>
+                                <div class="chart-period-switch print-hide" data-period-chart="dailyOutput" title="ดูข้อมูลรายวัน / สัปดาห์ / เดือน / ไตรมาส / ปี"></div>
+                                <select id="dailyOutputSelector" onchange="window.renderDailyOutputChart()" class="text-[10px] border rounded p-1 text-gray-600 bg-white print-hide">
+                                    <option value="pcs">จำนวน (ชิ้น)</option>
+                                    <option value="percent">สัดส่วน (%)</option>
+                                </select>
+                                <select id="dailyOutputPendingSelector" onchange="window.renderDailyOutputChart()" class="text-[10px] border rounded p-1 text-gray-600 bg-white print-hide" title="งานที่ส่ง Sort แล้วยังไม่รู้ผล">
+                                    <option value="split" selected>แยกก้อน "รอ Sort"</option>
+                                    <option value="merge">รวมอยู่ใน FG/NG (เดิม)</option>
+                                </select>
+                                <select id="dailyOutputAvgSelector" onchange="window.renderDailyOutputChart()" class="text-[10px] border rounded p-1 text-gray-600 bg-white print-hide">
+                                    <option value="off">ไม่มีเส้นเฉลี่ย</option>
+                                    <option value="total" selected>เฉลี่ย: รวม</option>
+                                    <option value="fg">เฉลี่ย: เฉพาะ FG</option>
+                                </select>
+                                <select id="dailyOutputHoursSelector" onchange="window.renderDailyOutputChart()" class="text-[10px] border rounded p-1 text-gray-600 bg-white print-hide">
+                                    <option value="off">ไม่มีเส้นชั่วโมง</option>
+                                    <option value="on" selected>เส้นชั่วโมง-เครื่อง</option>
+                                </select>
+                                <select id="dailyOutputLabelSelector" onchange="window.renderDailyOutputChart()" class="text-[10px] border rounded p-1 text-gray-600 bg-white print-hide">
+                                    <option value="auto" selected>ตัวเลข: เมื่อขยาย</option>
+                                    <option value="hide">ตัวเลข: ซ่อน</option>
+                                    <option value="show">ตัวเลข: แสดงเสมอ</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.showChartAudit('dailyOutput')" class="text-gray-400 hover:text-green-600 font-bold text-sm leading-none print-hide" title="รายการคำนวณ (Audit)">📋</button>
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full min-h-[250px]"><canvas id="dailyOutputChart"></canvas></div>
+                </div>
+                
+                <div id="card-qc-trend" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <h3 class="font-bold text-gray-700 text-sm">📉 Daily NG Rate Trend</h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.exportNgRateAudit()" class="text-gray-400 hover:text-green-600 font-bold text-sm leading-none print-hide" title="Export รายการคำนวณ (Audit)">📋</button>
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                   <div class="w-full flex flex-wrap justify-end items-center gap-2 mb-1 print-hide">
+                            <div class="chart-period-switch print-hide" data-period-chart="qcTrend" title="ดูข้อมูลรายวัน / สัปดาห์ / เดือน / ไตรมาส / ปี"></div>
+                            <button id="qcLabelToggleBtn" onclick="window.toggleQcTrendLabels()" class="text-[10px] border rounded px-2 py-1 bg-white text-gray-500 hover:bg-blue-50" title="ปิด/เปิด ตัวเลขบนกราฟ">🔢 ตัวเลข: ปิด</button>
+                            <select id="qcModelSelector" onchange="if(typeof window.renderCharts === 'function') window.renderCharts(currentDashboardData);" class="text-[10px] border rounded p-1 text-gray-600 bg-white hover:bg-blue-50">
+                                <option value="all">รวมทุกรุ่น (All)</option>
+                                <option value="S1B29288-JR (10A)">S1B29288-JR (10A)</option>
+                                <option value="S1B71819-JR (16A)">S1B71819-JR (16A)</option>
+                                <option value="S1B29292-JR (20A)">S1B29292-JR (20A)</option>
+                                <option value="51207080HC-JR (25/32A)">51207080HC-JR (25/32A)</option>
+                            </select>
+                        </div>
+                        <div class="flex-1 relative w-full min-h-[250px]"><canvas id="qcTrendChart"></canvas></div>
+                </div>
+
+                <div id="card-ng-trend" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <div class="flex flex-col gap-1">
+                            <h3 class="font-bold text-gray-700 text-sm flex items-center gap-2">📈 Trend อาการ NG</h3>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                <div class="chart-period-switch print-hide" data-period-chart="ngTrend" title="ดูข้อมูลรายวัน / สัปดาห์ / เดือน / ไตรมาส / ปี"></div>
+                                <select id="ngTrendSelector" onchange="window.renderNgTrendChart()" class="text-[10px] border rounded p-1 text-gray-600 bg-white print-hide">
+                                    <option value="pcs">จำนวนเสีย (ชิ้น)</option>
+                                    <option value="percent">% เทียบยอดผลิต</option>
+                                </select>
+                                <select id="ngTrendMachineSelector" onchange="window.renderNgTrendChart()" class="text-[10px] border rounded p-1 text-gray-600 bg-white hover:bg-blue-50 print-hide">
+                                    <option value="all">ทุกเครื่อง</option>
+                                </select>
+                                <button id="ngTrendLabelToggle" onclick="window.toggleNgTrendLabels()" class="text-[10px] border rounded px-2 py-1 text-gray-500 bg-white hover:bg-blue-50 print-hide" title="แสดง/ซ่อนตัวเลข">🏷️ ตัวเลข</button>
+                                <button id="ngTrendShowAll" onclick="window.ngTrendShowAll()" class="text-[10px] border rounded px-2 py-1 text-gray-500 bg-white hover:bg-green-50 print-hide hidden" title="แสดงทุกเส้น">👁️ แสดงทั้งหมด</button>
+                                <button onclick="document.getElementById('ngTrendHelp').classList.toggle('hidden')" class="text-[10px] border rounded px-2 py-1 text-gray-500 bg-white hover:bg-blue-50 print-hide" title="อธิบายรายการคำนวณ">ℹ️ วิธีคำนวณ</button>
+                            </div>
+                            <div id="ngTrendHelp" class="hidden text-[10px] text-gray-600 bg-blue-50 border border-blue-100 rounded p-2 mt-1 max-w-2xl leading-relaxed"></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full min-h-[250px]"><canvas id="ngSymptomTrendChart"></canvas></div>
+                    <div id="ngTrendLegend" class="mt-1"></div>
+                </div>
+                
+                <div id="card-ng-machine" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <h3 class="font-bold text-gray-700 text-sm">🏭 NG by Machine</h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full min-h-[250px]"><canvas id="ngByMachineChart"></canvas></div>
+                </div>
+                
+                <div id="card-hourly" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <h3 class="font-bold text-gray-700 text-sm">Hourly Production</h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <ul id="hourly-legend-ul" class="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-1.5 mb-2 max-h-24 overflow-y-auto pr-1"></ul>
+                    <div class="flex-1 relative w-full min-h-[150px]"><canvas id="hourlyChart"></canvas></div>
+                </div>
+                
+                <div id="card-ng-breakdown" class="widget-card p-4 h-[350px]">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <h3 class="font-bold text-gray-700 text-sm">NG Breakdown</h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardHeight(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↕</button>
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="flex-1 relative w-full min-h-[250px]"><canvas id="ngChart"></canvas></div>
+                </div>
+                
+                <div id="card-table" class="widget-card md:col-span-2 p-4 print-hide">
+                    <div class="widget-header drag-handle mb-2 flex justify-between items-start">
+                        <h3 class="font-bold text-gray-700 text-sm">Detailed Machine Performance</h3>
+                        <div class="flex gap-2">
+                            <button onclick="window.toggleCardSize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">↔</button>
+                            <button onclick="window.toggleCardMaximize(this)" class="text-gray-400 hover:text-blue-600 font-bold text-lg leading-none print-hide">⛶</button>
+                        </div>
+                    </div>
+                    <div class="table-container flex-1 overflow-y-auto">
+                        <table class="w-full min-w-[1200px] divide-y divide-gray-200">
+                            <thead class="bg-gray-50"><tr id="table-header"><th>Machine</th><th>FG</th><th>NG (ชิ้น / Kg)</th><th>% Yield</th></tr></thead>
+                            <tbody id="table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 🌟 SECTION ADMIN PANEL 🌟 -->
+    <main id="section-admin" class="max-w-6xl mx-auto p-4 space-y-6 hidden print-hide">
+        <div class="bg-white rounded-xl shadow-lg p-6 border-t-4 border-purple-500">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <div>
+                    <h1 class="text-2xl font-black text-gray-800">🛡️ ระบบจัดการผู้ใช้งาน (Admin Panel)</h1>
+                    <p class="text-sm text-gray-500 mt-1">เพิ่ม ลบ หรือแก้ไขสิทธิ์การใช้งานของบุคคลากร</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window.forceRefreshAllUsers()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm flex items-center gap-2">
+                        🔄 บังคับ Refresh ทุก User
+                    </button>
+                    <button onclick="window.showUserModal('ADD')" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm flex items-center gap-2">
+                        <span class="text-xl leading-none">+</span> เพิ่มผู้ใช้ใหม่
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">ชื่อผู้ใช้ (Username)</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">ชื่อพนักงาน</th>
+                            <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">สิทธิ์ (Role)</th>
+                            <th class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-user-table" class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="4" class="text-center py-4 text-gray-500">กำลังโหลดข้อมูล...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- 🌟 MODAL: Manage Widgets (Admin Only) 🌟 -->
+    <div id="modal-widget-manager" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-xl shadow-2xl p-6 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-xl font-bold text-gray-800">👁️ เลือกกราฟที่จะแสดงผล</h3>
+                <button onclick="document.getElementById('modal-widget-manager').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">ติ๊กเลือกข้อมูลและกราฟที่ต้องการให้ผู้ใช้งานทุกคนมองเห็นในหน้า Dashboard</p>
+            <div id="widget-manager-list" class="flex-1 overflow-y-auto space-y-2 mb-4 p-1"></div>
+            <div class="pt-3 border-t flex gap-3">
+                <button type="button" onclick="document.getElementById('modal-widget-manager').classList.add('hidden')" class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-bold hover:bg-gray-300">ยกเลิก</button>
+                <button type="button" id="btn-save-widgets" onclick="window.saveWidgetSettings()" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 shadow-md">💾 บันทึกการตั้งค่า</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 MODAL: จัดการ User (Add/Edit) 🌟 -->
+    <div id="modal-user-manage" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-xl shadow-2xl p-6 flex flex-col">
+            <div class="flex justify-between items-center mb-5">
+                <h3 id="user-modal-title" class="text-xl font-bold text-gray-800">เพิ่มผู้ใช้งาน</h3>
+                <button onclick="document.getElementById('modal-user-manage').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+            <form id="userManageForm" class="space-y-4">
+                <input type="hidden" id="user-manage-mode" value="ADD">
+                <input type="hidden" id="user-manage-target" value="">
+                
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Username (สำหรับ Login)</label>
+                    <input type="text" id="user-manage-username" required class="w-full p-2 border border-gray-300 rounded focus:border-purple-500 focus:ring-1 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Password</label>
+                    <input type="password" id="user-manage-password" class="w-full p-2 border border-gray-300 rounded focus:border-purple-500 focus:ring-1 focus:ring-purple-500" placeholder="เว้นว่างไว้ถ้าไม่ต้องการเปลี่ยน (กรณีแก้ไข)">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">ชื่อพนักงาน (แสดงผล)</label>
+                    <input type="text" id="user-manage-name" required class="w-full p-2 border border-gray-300 rounded focus:border-purple-500 focus:ring-1 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">สิทธิ์การใช้งาน (Role)</label>
+                    <select id="user-manage-role" required class="w-full p-2 border border-gray-300 rounded bg-white">
+                        <option value="Production">Production (บันทึกผลิต)</option>
+                        <option value="QC">QC (บันทึกผลิต / ตรวจสอบ)</option>
+                        <option value="Planning">Planning (วางแผนเท่านั้น)</option>
+                        <option value="Viewer">Viewer (ดู Dashboard เท่านั้น)</option>
+                        <option value="Admin">Admin (จัดการระบบเต็มรูปแบบ)</option>
+                    </select>
+                </div>
+                
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="document.getElementById('modal-user-manage').classList.add('hidden')" class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-bold hover:bg-gray-300">ยกเลิก</button>
+                    <button type="submit" id="btn-save-user" class="flex-1 bg-purple-600 text-white py-2.5 rounded-lg font-bold hover:bg-purple-700 shadow-md">บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🌟 MODAL: Production by Timestamp (Reconcile Stock) 🌟 -->
+    <div id="modal-sorting-ts" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-5xl rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-4 border-b flex justify-between items-center bg-pink-600 text-white rounded-t-xl">
+                <h3 class="text-lg font-bold">📦 ดึงข้อมูลตาม Timestamp (สำหรับ Reconcile สต๊อก)</h3>
+                <button onclick="document.getElementById('modal-sorting-ts').classList.add('hidden')" class="text-white hover:text-pink-100 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="p-4 bg-pink-50 border-b flex flex-wrap gap-3 items-end">
+                <div>
+                    <label class="text-xs font-bold text-gray-600">Timestamp เริ่ม</label>
+                    <input type="date" id="sortTs-start" class="block p-2 border rounded text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600">Timestamp สิ้นสุด</label>
+                    <input type="date" id="sortTs-end" class="block p-2 border rounded text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600">ประเภท</label>
+                    <select id="sortTs-filter" class="block p-2 border rounded text-sm">
+                        <option value="all">ทั้งหมด</option>
+                        <option value="fg_only">เฉพาะ FG (ไม่มี NG)</option>
+                        <option value="ng_only">เฉพาะ NG (มี NG > 0)</option>
+                        <option value="production">เฉพาะงานผลิต (ไม่รวม Sorting)</option>
+                        <option value="sorting">เฉพาะ Sorting (งานคัดแยก)</option>
+                    </select>
+                </div>
+                <button onclick="window.fetchProductionByTimestamp()" class="bg-pink-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-pink-700">🔍 ค้นหา</button>
+                <div id="sortTs-summary" class="text-xs text-gray-500 ml-auto"></div>
+            </div>
+            <div id="sortTs-result" class="flex-1 overflow-y-auto p-4">
+                <p class="text-center text-gray-400 py-8">เลือกวันที่แล้วกด ค้นหา</p>
+            </div>
+            <div class="p-3 border-t flex justify-end gap-2">
+                <button onclick="window.exportProductionTsCsv()" id="btn-export-sortTs" class="bg-green-600 text-white px-4 py-2 rounded text-sm font-bold hover:bg-green-700 hidden">📗 Export CSV</button>
+                <button onclick="document.getElementById('modal-sorting-ts').classList.add('hidden')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-bold hover:bg-gray-300">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-auto-report" class="fixed inset-0 bg-gray-100 z-50 hidden flex-col overflow-y-auto">
+        <div class="bg-white shadow-md p-4 sticky top-0 z-10 flex justify-between items-center auto-report-hide border-b border-gray-200">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">🤖 Factory Standard Report Preview</h2>
+            <div class="flex gap-2">
+                <button onclick="window.printAutoReport()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-indigo-700 transition-colors flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    พิมพ์ / บันทึก PDF
+                </button>
+                <button onclick="window.closeAutoReport()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">❌ ปิด</button>
+            </div>
+        </div>
+        <div class="p-6 md:p-10 max-w-[210mm] mx-auto w-full bg-white my-6 shadow-2xl rounded-sm" id="auto-report-content" style="min-height: 297mm;"></div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-assign" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl p-4 flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4 flex-none"><h3 class="text-lg font-bold text-gray-800">⚙️ กำหนดรุ่นให้เครื่องจักร</h3><button onclick="window.closeAssignModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button></div>
+            <p class="text-xs text-gray-500 mb-3 flex-none">เมื่อเลือกเครื่องจักรในฟอร์ม ระบบจะดึงรุ่นที่ตั้งค่าไว้นี้มาให้อัตโนมัติ</p>
+            <div id="assign-list-container" class="space-y-2 mb-4 overflow-y-auto flex-1 p-1 pr-2"></div>
+            <div class="flex-none pt-3 border-t flex gap-2"><button onclick="window.saveAssignment()" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700">💾 บันทึกการตั้งค่า</button></div>
+        </div>
+    </div>
+
+    <!-- 🌟 MODAL: แจ้งซ่อม/บันทึกปัญหาเครื่องจักร 🌟 -->
+    <div id="modal-maintenance" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-xl shadow-2xl p-6 flex flex-col max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-orange-600 flex items-center gap-2"><span>🛠️</span> แจ้งซ่อม / ปัญหาเครื่องจักร</h3>
+                <button onclick="document.getElementById('modal-maintenance').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+            
+            <!-- ส่วนแสดงงานค้าง -->
+            <div id="pending-maint-container" class="hidden mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                 <div class="flex justify-between items-center mb-2">
+                     <h4 class="text-sm font-bold text-yellow-800">⚠️ งานซ่อมค้าง (ยังไม่ลงเวลาเสร็จ)</h4>
+                     <button type="button" onclick="window.clearPendingSelection()" class="hidden text-[10px] text-gray-500 hover:text-gray-800 bg-white border px-2 py-1 rounded shadow-sm" id="btn-clear-pending">ยกเลิกดึงข้อมูล</button>
+                 </div>
+                 <div id="pending-maint-list" class="space-y-2 max-h-32 overflow-y-auto text-xs"></div>
+            </div>
+
+            <form id="maintenanceForm" class="space-y-4">
+                <input type="hidden" id="maint-job-id" value="">
+                
+                <div class="grid grid-cols-2 gap-3 mb-2">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">วันที่แจ้ง</label>
+                        <input type="date" id="maint-date" required class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">ผู้แจ้งปัญหา</label>
+                        <input type="text" id="maint-reporter" readonly class="w-full p-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 text-sm cursor-not-allowed font-medium">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">เลือกเครื่องจักร</label>
+                    <select id="maint-machine" required class="w-full p-2 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500">
+                        <option value="">-- กรุณาเลือก --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">ประเภทของปัญหา</label>
+                    <select id="maint-issue-type" required class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500">
+                        <option value="เครื่องจักรเสีย (Machine Breakdown)">⚙️ เครื่องจักรเสีย (Machine Breakdown)</option>
+                        <option value="PM (Preventive Maintenance)">📅 PM (Preventive Maintenance)</option>
+                        <option value="AM (Autonomous Maintenance)">👤 AM (Autonomous Maintenance)</option>
+                        <option value="รอวัตถุดิบ (Material Shortage)">📦 รอวัตถุดิบ (Material Shortage)</option>
+                        <option value="ตั้งค่าเครื่อง (Setup/Changeover)">🔧 ตั้งค่าเครื่อง (Setup/Changeover)</option>
+                        <option value="ทำความสะอาด (Cleaning)">🧹 ทำความสะอาด (Cleaning)</option>
+                        <option value="ปัญหาคุณภาพ (Quality Issue)">🔍 ปัญหาคุณภาพ (Quality Issue)</option>
+                        <option value="อื่นๆ (Others)">❓ อื่นๆ (Others)</option>
+                    </select>
+                </div>
+                
+                <!-- วันที่ซ่อมเสร็จ กรณีปิดจ๊อบข้ามวัน -->
+                <div id="maint-end-date-wrapper" class="hidden">
+                     <div class="bg-blue-50 border border-blue-200 p-2 rounded-lg mb-3 flex items-center justify-between" id="maint-close-info">
+                         <span class="text-xs text-blue-700">👤 ผู้ปิดงานซ่อม: <b id="maint-closer-name">-</b></span>
+                     </div>
+                     <label class="block text-sm font-bold text-green-700 mb-1">📅 วันที่ซ่อมเสร็จ (ปิดจ๊อบ)</label>
+                     <input type="date" id="maint-end-date" class="w-full p-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-green-50">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">เริ่มหยุด (Start)</label>
+                        <input type="time" id="maint-start-time" required class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">ทำงานต่อ (End)</label>
+                        <input type="time" id="maint-end-time" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                        <p class="text-[10px] text-gray-400 mt-1" id="maint-end-hint">*เว้นว่างไว้ถ้ายังซ่อมไม่เสร็จ</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">รายละเอียด/การแก้ไขเบื้องต้น</label>
+                    <textarea id="maint-remark" rows="2" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500" placeholder="อธิบายปัญหาที่พบ..."></textarea>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded-lg border border-dashed border-gray-300" id="maint-photo-section">
+                    <label id="maint-photo-label" class="block text-sm font-bold text-gray-700 mb-2">📸 ถ่ายรูปหลักฐานตอนเปิดแจ้งซ่อม</label>
+                    <input type="file" id="maint-photo" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 cursor-pointer">
+                    <div id="maint-photo-preview" class="mt-3 hidden rounded-lg overflow-hidden border border-gray-200">
+                        <img id="maint-photo-img" src="" alt="Preview" class="w-full h-auto max-h-48 object-contain bg-black">
+                    </div>
+                </div>
+                
+                <div class="pt-2 flex gap-3">
+                    <button type="button" onclick="document.getElementById('modal-maintenance').classList.add('hidden')" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-300">ยกเลิก</button>
+                    <button type="submit" id="btn-save-maint" class="flex-1 bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 shadow-md">💾 บันทึกเปิดแจ้งซ่อม</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modal-ng" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl p-4 flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center mb-4 flex-none">
+                <h3 class="text-lg font-bold">บันทึกของเสีย (NG)</h3><button type="button" onclick="window.manageSymptomsFromModal()" class="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded text-xs font-bold hover:bg-blue-100 shadow-sm">⚙️ จัดการรายการ</button>
+            </div>
+            <div id="modal-ng-list" class="space-y-2 mb-4 overflow-y-auto flex-1 p-1"></div>
+            <div class="flex-none pt-2 border-t">
+                 <button type="button" onclick="window.addCustomNgField()" class="w-full mb-2 text-blue-600 text-xs font-bold border border-blue-200 rounded py-1 hover:bg-blue-50">+ ระบุอาการอื่น (Add Other)</button>
+                 <div class="flex gap-2">
+                    <button onclick="window.closeNgModal(true)" class="flex-1 bg-green-600 text-white py-2 rounded-lg font-bold">ยืนยัน</button>
+                    <button onclick="window.closeNgModal(false)" class="flex-1 bg-gray-200 py-2 rounded-lg font-bold">ยกเลิก</button>
+                 </div>
+            </div>
+        </div>
+    </div>
+    
+  <div id="modal-machine-detail" class="fixed inset-0 bg-black bg-opacity-60 z-40 flex items-center justify-center hidden backdrop-blur-sm p-2 print-hide">
+        <div id="modal-machine-detail-content" class="bg-white w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh] transition-all duration-300">
+            <div class="bg-blue-600 p-4 border-b flex justify-between items-center text-white">
+                <h3 id="machine-detail-title" class="font-bold text-lg">Machine Detail</h3>
+                <div class="flex items-center gap-4">
+                    <button onclick="window.toggleModalFullscreen('modal-machine-detail-content', this)" class="text-white hover:text-gray-300 text-xl font-bold leading-none" title="ขยายเต็มจอ">⛶</button>
+                    <button onclick="document.getElementById('modal-machine-detail').classList.add('hidden')" class="text-white hover:text-gray-300 text-3xl font-bold leading-none">&times;</button>
+                </div>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 flex flex-col">
+                <div id="machine-detail-stats" class="mb-4 grid grid-cols-2 gap-4 text-center"></div>
+                
+                <div class="flex border-b mb-4">
+                    <button onclick="window.switchMachineDetailTab('chart')" id="tab-md-chart" class="py-2 px-4 border-b-2 border-blue-600 text-blue-600 font-bold focus:outline-none">📊 กราฟการผลิต</button>
+                    <button onclick="window.switchMachineDetailTab('maint')" id="tab-md-maint" class="py-2 px-4 border-b-2 border-transparent text-gray-500 font-bold hover:text-gray-700 focus:outline-none">🛠️ ซ่อมบำรุง</button>
+                    <button onclick="window.switchMachineDetailTab('parts')" id="tab-md-parts" class="py-2 px-4 border-b-2 border-transparent text-gray-500 font-bold hover:text-gray-700 focus:outline-none">⚙️ อะไหล่</button>
+                </div>
+
+                <div id="md-section-chart" class="flex flex-col flex-1">
+                    <div class="flex justify-between items-center mb-2 bg-gray-100 p-2 rounded">
+                        <h4 class="font-bold text-gray-700 text-sm">📈 แนวโน้มการผลิตและของเสีย</h4>
+                        <select id="machineChartToggle" onchange="window.switchMachineChart()" class="text-xs border border-gray-300 rounded p-1 text-gray-700 bg-white font-bold cursor-pointer">
+                            <option value="hourly">⏱️ ดูรายชั่วโมง (Hourly)</option>
+                            <option value="daily">📅 ดูเทรนด์รายวัน (Daily Trend)</option>
+                        </select>
+                    </div>
+                    <!-- เลือกช่วงวันที่ของกราฟเทรนด์รายวันเอง (อยู่ในช่วงข้อมูลที่โหลดไว้) -->
+                    <div id="machine-daily-range" class="hidden flex flex-wrap items-center gap-2 mb-2 p-2 bg-blue-50 border border-blue-100 rounded text-xs">
+                        <span class="font-bold text-blue-800" title="เลือกได้ภายในช่วงข้อมูลที่โหลดไว้ — ถ้าต้องการย้อนไกลกว่านี้ ให้ขยายช่วงวันที่ของ Dashboard แล้วเปิดใหม่">📅 ช่วงวันที่:</span>
+                        <input type="date" id="md-daily-from" onchange="window.renderMachineDailyTrend()" class="border border-gray-300 rounded p-1 bg-white">
+                        <span class="text-gray-500">ถึง</span>
+                        <input type="date" id="md-daily-to" onchange="window.renderMachineDailyTrend()" class="border border-gray-300 rounded p-1 bg-white">
+                        <button onclick="window.setMachineDailyRangePreset(7)" class="px-2 py-1 rounded bg-white border border-blue-300 text-blue-700 font-bold hover:bg-blue-100">7 วัน</button>
+                        <button onclick="window.setMachineDailyRangePreset(30)" class="px-2 py-1 rounded bg-white border border-blue-300 text-blue-700 font-bold hover:bg-blue-100">30 วัน</button>
+                        <button onclick="window.setMachineDailyRangePreset(90)" class="px-2 py-1 rounded bg-white border border-blue-300 text-blue-700 font-bold hover:bg-blue-100">90 วัน</button>
+                        <button onclick="window.setMachineDailyRangePreset(0)" class="px-2 py-1 rounded bg-white border border-gray-300 text-gray-700 font-bold hover:bg-gray-100">ทั้งหมด</button>
+                        <div class="chart-period-switch print-hide" data-period-chart="machineDaily" title="ดูข้อมูลรายวัน / สัปดาห์ / เดือน / ไตรมาส / ปี"></div>
+                        <span id="md-daily-range-info" class="text-gray-500 ml-auto"></span>
+                    </div>
+                    <div class="text-xs text-blue-600 mb-1 hidden text-right font-bold" id="daily-chart-hint">💡 คลิกที่แท่ง NG สีแดงเพื่อดูรายละเอียดอาการเสีย</div>
+                    <div id="machine-hourly-wrapper" class="h-64 md:h-80 w-full relative"><canvas id="machineDetailChart"></canvas></div>
+                    <div id="machine-daily-wrapper" class="h-64 md:h-80 w-full relative hidden"><canvas id="machineDailyTrendChart"></canvas></div>
+                    <div id="machine-detail-remarks" class="mt-4 border-t pt-2 hidden">
+                        <h4 class="font-bold text-gray-700 text-left">📝 หมายเหตุของเสีย (NG Remarks)</h4>
+                        <div id="machine-remarks-list" class="text-left text-sm text-gray-600 mt-2 max-h-32 overflow-y-auto bg-gray-50 p-2 rounded"></div>
+                    </div>
+                </div>
+
+                <div id="md-section-maint" class="flex flex-col flex-1 hidden">
+                    <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 flex justify-between items-center">
+                        <div>
+                            <p class="text-xs font-bold text-orange-800 uppercase">รวมเวลาหยุดเครื่อง (Total Downtime)</p>
+                            <p id="md-total-downtime" class="text-xl font-bold text-orange-600">0 นาที</p>
+                        </div>
+                        <div class="text-3xl">⏱️</div>
+                    </div>
+                    <h4 class="font-bold text-gray-700 text-left mb-2">📋 รายการแจ้งปัญหา / ซ่อมบำรุง</h4>
+                    <div id="machine-maintenance-list" class="flex-1 overflow-y-auto space-y-2">
+                        <div class="text-center text-gray-400 py-4 text-sm">ไม่พบประวัติการแจ้งซ่อมในช่วงเวลานี้</div>
+                    </div>
+                </div>
+
+                <div id="md-section-parts" class="flex flex-col flex-1 hidden">
+                    <div class="text-center text-gray-400 py-8">⏳ กำลังโหลดข้อมูลอะไหล่...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal สำหรับดูรูปภาพหลักฐานขนาดใหญ่ -->
+    <div id="modal-image-viewer" class="fixed inset-0 bg-black bg-opacity-90 z-[60] hidden flex flex-col items-center justify-center p-4">
+        <div class="w-full flex justify-end mb-2">
+            <button onclick="document.getElementById('modal-image-viewer').classList.add('hidden')" class="text-white hover:text-gray-300 text-4xl font-bold">&times;</button>
+        </div>
+        <img id="viewer-img" src="" class="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl">
+        <p id="viewer-caption" class="text-white mt-4 text-center text-sm font-medium"></p>
+    </div>
+
+    <!-- SECTION: INBOX (📬 กล่องงาน) -->
+    <!-- บนจอคอมให้กางเต็มความกว้าง/ความสูงจอ (lg ขึ้นไป) เพราะเป็นหน้าที่มีตารางและรูปเยอะ -->
+    <main id="section-inbox" class="max-w-6xl lg:max-w-none mx-auto p-4 lg:px-6 hidden print-hide">
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden border-t-4 border-purple-500">
+            <div class="bg-purple-600 p-4 flex justify-between items-center text-white">
+                <h3 class="text-lg font-bold flex items-center gap-2">📬 Inbox <span id="inbox-badge" class="hidden bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-1"></span></h3>
+                <button onclick="window.loadInbox()" class="text-white text-sm bg-purple-700 hover:bg-purple-800 px-3 py-1 rounded">🔄 รีเฟรช</button>
+            </div>
+            <div class="flex flex-col md:flex-row min-h-[60vh] lg:min-h-[calc(100vh-170px)]">
+                <!-- Sidebar (folders) -->
+                <div id="inbox-sidebar" class="w-full md:w-56 xl:w-64 border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50 p-2 space-y-0.5 shrink-0"></div>
+                <!-- Content (items list) -->
+                <div id="inbox-content" class="flex-1 p-3 lg:p-4 overflow-y-auto max-h-[75vh] lg:max-h-[calc(100vh-170px)] bg-gray-50/50"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SECTION: SCRAP LIST (ทิ้งขยะ) -->
+    <main id="section-scrap" class="max-w-6xl mx-auto p-4 space-y-4 hidden print-hide">
+        <div class="bg-white rounded-xl shadow-lg p-4 border border-amber-100 print-hide">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div>
+                    <label class="text-xs font-bold text-gray-600 mb-1 block">ชนิดขยะ</label>
+                    <div class="flex gap-2">
+                        <select id="scrap-type" class="flex-1 border rounded-lg p-2 bg-white"></select>
+                        <button type="button" id="btn-scrap-type-panel" title="จัดการชนิดขยะ" class="bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 rounded-lg">⚙️</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 mb-1 block">รายการขยะ</label>
+                    <div class="flex gap-2">
+                        <select id="scrap-item" class="flex-1 border rounded-lg p-2 bg-white"></select>
+                        <button type="button" id="btn-scrap-item-panel" title="จัดการรายการขยะ" class="bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 rounded-lg">⚙️</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 mb-1 block">น้ำหนัก (กก.)</label>
+                    <input id="scrap-weight" type="number" min="0" step="0.01" class="w-full border rounded-lg p-2" placeholder="0.00">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 mb-1 block">ผู้บันทึก</label>
+                    <input id="scrap-recorder" type="text" readonly class="w-full border rounded-lg p-2 bg-gray-100 text-gray-600">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 mb-1 block">วันที่และเวลา</label>
+                    <div class="flex gap-2">
+                        <input id="scrap-datetime" type="datetime-local" class="w-full border rounded-lg p-2">
+                        <button type="button" id="btn-scrap-reset-time" class="bg-gray-100 hover:bg-gray-200 border px-2 rounded">↺</button>
+                    </div>
+                </div>
+                <div class="flex items-end">
+                    <button type="button" id="btn-scrap-save" class="w-full bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-bold">💾 บันทึกรายการทิ้งขยะ</button>
+                </div>
+            </div>
+
+            <!-- แผงจัดการชนิดขยะ -->
+            <div id="scrap-type-panel" class="hidden mt-3 p-3 rounded-lg border bg-amber-50 space-y-2">
+                <div class="text-xs font-bold text-gray-600">จัดการชนิดขยะ (ประเภทหลัก)</div>
+                <div class="flex gap-2">
+                    <input id="scrap-type-new" type="text" class="flex-1 border rounded p-2 text-sm" placeholder="เพิ่มชนิดขยะใหม่">
+                    <button type="button" id="btn-scrap-type-add" class="bg-amber-600 text-white px-3 rounded">+ เพิ่ม</button>
+                </div>
+                <div id="scrap-type-list" class="space-y-1 max-h-40 overflow-y-auto"></div>
+            </div>
+
+            <!-- แผงจัดการรายการขยะ (ผูกกับชนิดขยะ) -->
+            <div id="scrap-item-panel" class="hidden mt-3 p-3 rounded-lg border bg-amber-50 space-y-2">
+                <div class="text-xs font-bold text-gray-600">จัดการรายการขยะ (ผูกกับชนิดขยะ)</div>
+                <div class="flex flex-col md:flex-row gap-2">
+                    <input id="scrap-item-new" type="text" class="flex-1 border rounded p-2 text-sm" placeholder="ชื่อรายการขยะใหม่">
+                    <select id="scrap-item-type" class="border rounded p-2 text-sm bg-white"></select>
+                    <button type="button" id="btn-scrap-item-add" class="bg-amber-600 text-white px-3 rounded whitespace-nowrap">+ เพิ่ม</button>
+                </div>
+                <div id="scrap-item-list" class="space-y-1 max-h-48 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <!-- แถบเครื่องมือฟอร์ม (เลือกเดือน + ประเภท + Export PDF) -->
+        <div class="flex flex-wrap justify-end items-center gap-2 print-hide">
+            <label for="scrap-export-month" class="text-sm font-bold text-gray-600">เดือน:</label>
+            <input type="month" id="scrap-export-month" class="border rounded-lg p-2 bg-white text-sm">
+            <label for="scrap-export-type" class="text-sm font-bold text-gray-600">ประเภทขยะ:</label>
+            <select id="scrap-export-type" class="border rounded-lg p-2 bg-white text-sm"></select>
+            <button type="button" id="btn-scrap-export-pdf" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold shadow">📄 Export PDF (ดาวน์โหลดใบนำส่งขยะ)</button>
+        </div>
+
+        <div id="scrap-print-area" class="bg-white rounded-xl shadow-lg p-4 md:p-6 border-t-4 border-amber-500 overflow-x-auto">
+            <div class="scrap-doc min-w-[1000px] border-2 border-black text-black">
+                <div class="grid grid-cols-[120px_1fr] items-center border-b-2 border-black p-4">
+                    <div class="flex justify-center">
+                        <img src="Logo JR.jpg" alt="JR Logo" class="w-20 h-20 object-contain">
+                    </div>
+                    <div class="text-center leading-tight">
+                        <div class="scrap-doc-title text-[44px] font-bold">ใบนำส่งขยะและวัสดุเหลือใช้ภายในโรงงาน Scrap List</div>
+                        <div class="scrap-doc-title-cn text-[54px] font-bold">厂内垃圾或边料余料搬运记录表</div>
+                    </div>
+                </div>
+                <div class="p-4 text-sm">
+                    <p>ประเภทของเสีย / 废弃物类别: <span id="scrap-doc-types">☐ ขยะอันตราย 危险垃圾 &nbsp;&nbsp;&nbsp; ☐ ขยะรีไซเคิล 回收垃圾 &nbsp;&nbsp;&nbsp; ☐ ขยะอุตสาหกรรมที่ไม่เป็นอันตราย (เศษเหลือใช้จากการผลิต) 非危险工业垃圾（如生产边料） &nbsp;&nbsp;&nbsp; ☐ อื่น ๆ (ระบุ) Other 其他 ____________</span></p>
+                    <p class="mt-2">แผนก/ฝ่าย (ผู้นำส่งขยะ) Division/Dept. (Transfer by) 运搬部门: <input id="scrap-doc-div" type="text" value="Coil winding" class="scrap-doc-input border-b border-black outline-none bg-transparent px-1 w-40"> &nbsp;&nbsp;&nbsp; ประจำเดือน/ปี Monthly/Yearly 月/年: <input id="scrap-doc-month" type="text" class="scrap-doc-input border-b border-black outline-none bg-transparent px-1 w-32"> &nbsp;&nbsp;&nbsp; Page 页: <input id="scrap-doc-page" type="text" class="scrap-doc-input border-b border-black outline-none bg-transparent px-1 w-12 text-center"></p>
+                </div>
+                <table class="w-full border-t-2 border-black text-sm">
+                    <thead>
+                        <tr class="border-b-2 border-black">
+                            <th class="border-r-2 border-black p-2">วันที่ Date<br><span class="text-3xl">日期</span></th>
+                            <th class="border-r-2 border-black p-2">ลำดับ No.<br><span class="text-3xl">序号</span></th>
+                            <th class="border-r-2 border-black p-2">รายการ / รายละเอียดประเภทขยะ Description/ Rubbish Type<br><span class="text-3xl">项目/种类</span></th>
+                            <th class="border-r-2 border-black p-2">จำนวน q'ty<br><span class="text-3xl">数量</span></th>
+                            <th class="border-r-2 border-black p-2">ผู้นำส่ง Transfered by<br><span class="text-3xl">搬运者</span></th>
+                            <th class="p-2">ผู้รับ Received by<br><span class="text-3xl">接收者</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="scrap-form-body">
+                        <tr class="h-14 border-b border-black"><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td></td></tr>
+                        <tr class="h-14 border-b border-black"><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td></td></tr>
+                        <tr class="h-14 border-b border-black"><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td></td></tr>
+                        <tr class="h-14 border-b border-black"><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td></td></tr>
+                        <tr class="h-14"><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td class="border-r-2 border-black"></td><td></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-amber-100 print-hide">
+            <div class="bg-amber-600 text-white px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+                <h3 class="font-bold">📋 รายการทิ้งขยะ</h3>
+                <span id="scrap-today-total" class="text-sm font-bold bg-amber-700 px-3 py-1 rounded-full">รวม 0.00 กก.</span>
+            </div>
+            <div class="flex flex-wrap items-end gap-2 p-3 bg-amber-50 border-b border-amber-100">
+                <div>
+                    <label class="text-xs font-bold text-gray-600 mb-1 block">ตั้งแต่วันที่</label>
+                    <input type="date" id="scrap-list-from" class="border rounded-lg p-2 bg-white text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 mb-1 block">ถึงวันที่</label>
+                    <input type="date" id="scrap-list-to" class="border rounded-lg p-2 bg-white text-sm">
+                </div>
+                <button type="button" id="btn-scrap-list-today" class="bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-2 rounded-lg text-sm font-bold">วันนี้</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-amber-50">
+                        <tr>
+                            <th class="p-2 text-left">วันที่/เวลา</th>
+                            <th class="p-2 text-left">ชนิดขยะ</th>
+                            <th class="p-2 text-right">น้ำหนัก (กก.)</th>
+                            <th class="p-2 text-left">ผู้บันทึก</th>
+                            <th class="p-2 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scrap-today-body">
+                        <tr><td colspan="5" class="p-4 text-center text-gray-400">ยังไม่มีรายการ</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- SECTION: DAILY CHECK (OK 1st Part Workstation Check list) — js/dailycheck.js -->
+    <main id="section-dailycheck" class="max-w-6xl mx-auto p-4 space-y-4 hidden print-hide">
+        <div class="bg-white rounded-xl shadow-lg p-4 border border-green-100">
+            <div class="flex flex-wrap items-end gap-3 justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-green-700">✅ OK 1st Part Workstation Check list</h2>
+                    <div class="text-xs text-gray-500">Line: Winding Coil · ตรวจทุกเครื่อง ทุกกะ (เริ่มกะ / เปลี่ยนรุ่น)</div>
+                </div>
+                <div class="flex flex-wrap gap-2 items-end">
+                    <div>
+                        <label class="text-xs font-bold text-gray-600 block">วันที่ (กะ)</label>
+                        <input id="dc-date" type="date" class="border rounded-lg p-2">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-600 block">กะ</label>
+                        <select id="dc-shift" class="border rounded-lg p-2 bg-white">
+                            <option value="Day">กะเช้า (08:00-20:00)</option>
+                            <option value="Night">กะดึก (20:00-08:00)</option>
+                        </select>
+                    </div>
+                    <button type="button" id="btn-dc-refresh" class="bg-green-100 hover:bg-green-200 border border-green-300 px-3 py-2 rounded-lg text-sm font-bold">🔄 โหลด</button>
+                </div>
+            </div>
+            <div id="dc-summary" class="mt-3 text-sm"></div>
+            <div id="dc-machine-grid" class="mt-3 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2"></div>
+            <div class="mt-2 text-[11px] text-gray-500">กดที่เครื่องเพื่อบันทึกผลตรวจ · <span class="text-green-700 font-bold">เขียว</span> = OK · <span class="text-red-600 font-bold">แดง</span> = NOK · <span class="text-gray-500 font-bold">เทา</span> = ยังไม่ตรวจ</div>
+        </div>
+
+        <div id="dc-form-card" class="bg-white rounded-xl shadow-lg p-4 border border-green-100 hidden">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold text-gray-800">📝 บันทึกผลตรวจ <span id="dc-form-title" class="text-green-700"></span></h3>
+                <button type="button" id="btn-dc-close" class="text-gray-400 hover:text-gray-700 text-xl px-2">✕</button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div>
+                    <label class="text-xs font-bold text-gray-600 block">เครื่อง (MC)</label>
+                    <select id="dc-machine" class="w-full border rounded-lg p-2 bg-white font-bold"></select>
+                </div>
+                <div class="col-span-2 md:col-span-1">
+                    <label class="text-xs font-bold text-gray-600 block">Product reference</label>
+                    <select id="dc-product" class="w-full border rounded-lg p-2 bg-white"></select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 block">เวลา</label>
+                    <input id="dc-time" type="time" class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 block">จังหวะการตรวจ</label>
+                    <select id="dc-type" class="w-full border rounded-lg p-2 bg-white">
+                        <option value="เริ่มกะ">เริ่มกะการทำงาน</option>
+                        <option value="เปลี่ยนรุ่น">เปลี่ยนรุ่น</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 block">ผู้ตรวจสอบ</label>
+                    <input id="dc-inspector" type="text" readonly class="w-full border rounded-lg p-2 bg-gray-100 text-gray-600">
+                </div>
+            </div>
+            <div class="flex justify-end mt-3">
+                <button type="button" id="btn-dc-all-ok" class="bg-green-50 hover:bg-green-100 border border-green-300 text-green-700 px-3 py-1.5 rounded-lg text-xs font-bold">✔ ตั้งทุกข้อเป็น OK</button>
+            </div>
+            <div id="dc-items" class="mt-2 space-y-2"></div>
+            <div class="mt-3">
+                <label class="text-xs font-bold text-gray-600 block">หมายเหตุ / Recovery plan <span id="dc-remark-req" class="text-red-600 hidden">(จำเป็นเมื่อมี NOK)</span></label>
+                <textarea id="dc-remark" rows="2" class="w-full border rounded-lg p-2" placeholder="ปัญหาที่พบ / การแก้ไข"></textarea>
+            </div>
+            <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <div class="text-sm">สรุปผล: <span id="dc-result" class="font-bold">-</span></div>
+                <button type="button" id="btn-dc-save" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold shadow">💾 บันทึกผลตรวจ</button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-4 border border-green-100">
+            <div class="flex flex-wrap gap-2 items-end mb-3">
+                <h3 class="font-bold text-gray-800 mr-auto">📋 ประวัติการตรวจ</h3>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 block">จาก</label>
+                    <input id="dc-hist-from" type="date" class="border rounded-lg p-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 block">ถึง</label>
+                    <input id="dc-hist-to" type="date" class="border rounded-lg p-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 block">เครื่อง</label>
+                    <select id="dc-hist-machine" class="border rounded-lg p-1.5 text-sm bg-white"></select>
+                </div>
+                <button type="button" id="btn-dc-hist" class="bg-green-100 hover:bg-green-200 border border-green-300 px-3 py-1.5 rounded-lg text-sm font-bold">ค้นหา</button>
+                <button type="button" id="btn-dc-csv" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 px-3 py-1.5 rounded-lg text-sm font-bold">⬇️ CSV</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead id="dc-hist-head" class="bg-green-50"></thead>
+                    <tbody id="dc-hist-body">
+                        <tr><td class="p-4 text-center text-gray-400">ยังไม่มีรายการ</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- SECTION: COST MANAGEMENT (บริหารต้นทุน) -->
+    <main id="section-cost" class="max-w-6xl mx-auto p-4 space-y-4 hidden print-hide">
+        <div id="cost-content"></div>
+    </main>
+
+    <!-- SECTION: PARTS MANAGER (จัดการอะไหล่เครื่องจักร) -->
+    <main id="section-parts" class="max-w-6xl mx-auto p-4 space-y-4 hidden print-hide">
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden border-t-4 border-cyan-500">
+            <div class="bg-cyan-600 p-4 flex justify-between items-center text-white">
+                <h3 class="text-lg font-bold flex items-center gap-2">⚙️ จัดการอะไหล่เครื่องจักร</h3>
+                <button onclick="window.loadPartsMaster()" class="text-white text-sm bg-cyan-700 hover:bg-cyan-800 px-3 py-1 rounded">🔄 รีเฟรช</button>
+            </div>
+
+            <!-- ฟอร์มเพิ่ม/แก้ไขอะไหล่ -->
+            <div class="p-4 border-b bg-gray-50">
+                <form id="parts-form" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <input type="hidden" id="parts-edit-id">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-0.5">ชื่ออะไหล่ *</label>
+                        <input type="text" id="parts-name" required class="w-full p-2 border rounded text-sm" placeholder="เช่น Guide Roller">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-0.5">หมวดหมู่</label>
+                        <select id="parts-category" class="w-full p-2 border rounded text-sm bg-white">
+                            <option value="Winding">Winding</option>
+                            <option value="Tension">Tension</option>
+                            <option value="Cutting">Cutting</option>
+                            <option value="Motor">Motor</option>
+                            <option value="Sensor">Sensor</option>
+                            <option value="Bearing">Bearing</option>
+                            <option value="Belt">Belt</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-0.5">อายุใช้งาน (Shot)</label>
+                        <input type="number" id="parts-life" class="w-full p-2 border rounded text-sm" placeholder="500000" min="0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-0.5">ราคา/ชิ้น (฿)</label>
+                        <input type="number" id="parts-cost" class="w-full p-2 border rounded text-sm" placeholder="0" min="0" step="0.01">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-0.5">Supplier</label>
+                        <input type="text" id="parts-supplier" class="w-full p-2 border rounded text-sm" placeholder="ผู้จำหน่าย">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-0.5" title="ตรวจเช็คทุกๆ N shot (0 = ไม่ตรวจ)">🔍 Check ทุกๆ (Shot)</label>
+                        <input type="number" id="parts-check-interval" class="w-full p-2 border rounded text-sm" placeholder="0 = ไม่ตรวจ" min="0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-0.5">หมายเหตุ</label>
+                        <input type="text" id="parts-remark" class="w-full p-2 border rounded text-sm" placeholder="รายละเอียดเพิ่มเติม">
+                    </div>
+                    <div class="flex items-end gap-1">
+                        <button type="submit" id="btn-save-part" class="flex-1 bg-cyan-600 text-white py-2 rounded font-bold hover:bg-cyan-700 text-sm">+ เพิ่มอะไหล่</button>
+                        <button type="button" id="btn-cancel-part" onclick="window.cancelPartEdit()" class="hidden px-4 py-2 bg-gray-300 text-gray-700 rounded font-bold hover:bg-gray-400 text-sm">ยกเลิก</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- ตารางรายการอะไหล่ -->
+            <div class="p-4 overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-2 text-left">ID</th>
+                            <th class="p-2 text-left">ชื่ออะไหล่</th>
+                            <th class="p-2 text-left">หมวด</th>
+                            <th class="p-2 text-right">Life (Shot)</th>
+                            <th class="p-2 text-right">Actual Shot / วัน</th>
+                            <th class="p-2 text-right">ราคา (฿)</th>
+                            <th class="p-2 text-left">Supplier</th>
+                            <th class="p-2 text-left">ติดตั้งที่</th>
+                            <th class="p-2 text-center">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parts-table-body">
+                        <tr><td colspan="9" class="text-center text-gray-400 py-4">กำลังโหลด...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- 🔧 MODAL: ติดตั้งอะไหล่ให้เครื่อง -->
+    <div id="modal-install-part" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-md rounded-xl shadow-2xl overflow-hidden">
+            <div class="bg-cyan-600 p-3 flex justify-between items-center text-white">
+                <h3 class="font-bold text-base flex items-center gap-2" id="install-modal-title">🔧 ติดตั้งอะไหล่กับเครื่อง</h3>
+                <button onclick="document.getElementById('modal-install-part').classList.add('hidden')" class="text-white hover:text-gray-200 text-xl font-bold">&times;</button>
+            </div>
+            <div class="p-4 space-y-3">
+                <div class="bg-cyan-50 border border-cyan-100 rounded p-2 text-sm">
+                    <div class="text-xs text-gray-500">อะไหล่:</div>
+                    <div class="font-bold text-cyan-800" id="install-part-name">-</div>
+                    <div class="text-xs text-gray-500 mt-1">อายุใช้งาน: <span id="install-part-life" class="font-mono text-gray-700">-</span> shot</div>
+                    <div id="install-move-hint" class="hidden text-xs mt-1 p-1.5 bg-orange-50 border border-orange-200 rounded text-orange-700">
+                        💡 เครื่องเดิม: <span id="install-prev-machine" class="font-mono font-bold"></span> · เลือกเครื่องเดิม = เปลี่ยนอะไหล่ / เครื่องใหม่ = ย้ายพร้อมเก็บยอด shot สะสม
+                    </div>
+                    <div id="install-carry-hint" class="hidden mt-1"></div>
+                </div>
+                <input type="hidden" id="install-part-id">
+                <input type="hidden" id="install-part-life-val">
+                <input type="hidden" id="install-prev-id">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">เลือกเครื่อง *</label>
+                    <select id="install-machine-select" class="w-full p-2 border rounded text-sm bg-white">
+                        <option value="">-- เลือกเครื่อง --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">วัน-เวลาติดตั้ง *</label>
+                    <div class="flex gap-2">
+                        <input type="date" id="install-date" class="flex-1 p-2 border rounded text-sm">
+                        <input type="text" id="install-time" maxlength="5" placeholder="HH:MM" pattern="^([01][0-9]|2[0-3]):[0-5][0-9]$" class="w-24 p-2 border rounded text-sm text-center font-mono">
+                    </div>
+                    <div class="text-[11px] text-gray-500 mt-1">💡 รูปแบบ 24 ชม. (เช่น 14:30) · สามารถเลือกย้อนหลังได้</div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Maint Job ID (ถ้ามี)</label>
+                    <input type="text" id="install-maint-job" class="w-full p-2 border rounded text-sm" placeholder="เช่น MJ-2025-001">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="window.confirmInstallPart()" id="btn-confirm-install" class="flex-1 bg-cyan-600 text-white py-2 rounded font-bold hover:bg-cyan-700 text-sm">✅ ยืนยันติดตั้ง</button>
+                    <button type="button" onclick="document.getElementById('modal-install-part').classList.add('hidden')" class="px-4 py-2 bg-gray-300 text-gray-700 rounded font-bold hover:bg-gray-400 text-sm">ยกเลิก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-daily-ng-breakdown" class="fixed inset-0 bg-black bg-opacity-40 z-50 hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col animate-fade-in">
+            <div class="bg-red-600 p-3 flex justify-between items-center text-white">
+                <h3 id="daily-ng-title" class="font-bold text-sm">🗑️ NG Breakdown</h3><button onclick="document.getElementById('modal-daily-ng-breakdown').classList.add('hidden')" class="text-white hover:text-gray-200 text-xl font-bold">&times;</button>
+            </div>
+            <div class="p-4 bg-gray-50 max-h-[75vh] overflow-y-auto" id="daily-ng-content"></div>
+        </div>
+    </div>
+
+    <div id="modal-ng-audit" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-2 print-hide">
+        <div class="bg-white w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+            <div class="bg-gradient-to-r from-green-700 to-emerald-600 p-4 flex justify-between items-center text-white flex-none">
+                <h3 class="font-bold text-base">📋 Audit Report: Daily NG Rate Calculation Detail</h3>
+                <div class="flex gap-3 items-center">
+                    <button onclick="window.downloadAuditCSV()" class="bg-white text-green-700 px-3 py-1 rounded text-xs font-bold hover:bg-green-50">CSV</button>
+                    <button onclick="window.printAuditReport()" class="bg-white text-green-700 px-3 py-1 rounded text-xs font-bold hover:bg-green-50">Print</button>
+                    <button onclick="document.getElementById('modal-ng-audit').classList.add('hidden')" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
+                </div>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 bg-gray-50" id="ng-audit-content"></div>
+        </div>
+    </div>
+
+    <!-- 📋 MODAL: รายการคำนวณกลาง (Generic Chart Audit) -->
+    <div id="modal-chart-audit" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-2 print-hide">
+        <div class="bg-white w-full max-w-6xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+            <div class="bg-gradient-to-r from-blue-700 to-indigo-600 p-4 flex justify-between items-center text-white flex-none">
+                <h3 class="font-bold text-base">📋 รายการคำนวณ (Audit)</h3>
+                <div class="flex gap-3 items-center">
+                    <button onclick="window.downloadChartAuditCSV()" class="bg-white text-blue-700 px-3 py-1 rounded text-xs font-bold hover:bg-blue-50">CSV</button>
+                    <button onclick="window.printChartAudit()" class="bg-white text-blue-700 px-3 py-1 rounded text-xs font-bold hover:bg-blue-50">Print</button>
+                    <button onclick="window.closeChartAudit()" class="text-white hover:text-gray-200 text-2xl font-bold">&times;</button>
+                </div>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 bg-gray-50" id="chart-audit-content"></div>
+        </div>
+    </div>
+
+    <div id="modal-manage-list" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl p-4 flex flex-col max-h-[80vh]">
+            <h3 id="manage-list-title" class="text-lg font-bold mb-4 flex-none">Manage List</h3>
+            <div id="manage-list-content" class="space-y-2 mb-4 overflow-y-auto flex-1 p-1 border border-gray-100 rounded bg-white"></div>
+            <div class="flex-none pt-3 border-t flex flex-col gap-2">
+                 <div class="flex gap-2">
+                     <input type="text" id="new-item-input" class="flex-1 p-2 border rounded text-sm" placeholder="พิมพ์ชื่อรายการใหม่...">
+                     <button onclick="window.addNewItemToList()" class="bg-green-600 text-white px-4 rounded font-bold hover:bg-green-700">เพิ่ม</button>
+                 </div>
+                 <div class="flex gap-2 mt-2">
+                     <button id="btn-save-cloud" onclick="window.saveListToCloud()" class="flex-1 bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700 shadow-sm">☁️ อัปเดตขึ้น Cloud</button>
+                     <button onclick="window.closeManageListModal()" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-bold hover:bg-gray-300">ปิด</button>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="undo-toast" class="fixed bottom-5 right-5 bg-gray-900 text-white px-5 py-4 rounded-xl shadow-2xl flex items-center gap-4 transition-all transform translate-y-24 opacity-0 pointer-events-none z-50 duration-300 print-hide">
+        <div class="flex-1">
+            <p class="text-sm font-bold text-green-400">✅ บันทึกข้อมูลสำเร็จ</p><p class="text-xs text-gray-300 mt-0.5">หากบันทึกผิด สามารถกดยกเลิกได้</p>
+        </div>
+        <button id="btn-undo-action" onclick="window.undoLastSubmit()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-bold shadow-md transition-colors pointer-events-auto">↩️ ยกเลิก (Undo)</button>
+        <button onclick="window.closeUndoToast()" class="text-gray-400 hover:text-white p-1 pointer-events-auto"><span class="text-xl leading-none">&times;</span></button>
+    </div>
+
+    <!-- 🌟 MODAL: เปลี่ยนรหัสผ่าน 🌟 -->
+    <div id="modal-change-password" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-xl shadow-2xl p-6 flex flex-col">
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-xl font-bold text-gray-800">🔑 เปลี่ยนรหัสผ่าน</h3>
+                <button onclick="window.closeChangePasswordModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold">&times;</button>
+            </div>
+            <form id="changePasswordForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">รหัสผ่านเดิม</label>
+                    <input type="password" id="change-old-password" required class="w-full p-2 border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="••••••••">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">รหัสผ่านใหม่</label>
+                    <input type="password" id="change-new-password" required class="w-full p-2 border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="••••••••">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">ยืนยันรหัสผ่านใหม่</label>
+                    <input type="password" id="change-confirm-password" required class="w-full p-2 border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="••••••••">
+                </div>
+                
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="window.closeChangePasswordModal()" class="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-lg font-bold hover:bg-gray-300">ยกเลิก</button>
+                    <button type="submit" id="btn-submit-change-pwd" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 shadow-md">บันทึกรหัสผ่าน</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🌟 MODAL: สรุปงานซ่อมและ RTV รายวัน (Idea 3) 🌟 -->
+    <div id="modal-daily-summary" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-4xl rounded-xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-fade-in">
+            <div class="bg-amber-500 p-4 flex justify-between items-center text-white flex-none">
+                <h3 class="font-bold text-lg flex items-center gap-2">📋 สรุปปัญหาแจ้งซ่อม และ RTV ประจำวัน</h3>
+                <button onclick="document.getElementById('modal-daily-summary').classList.add('hidden')" class="text-white hover:text-amber-100 text-2xl font-bold leading-none">&times;</button>
+            </div>
+            <div class="p-4 md:p-6 overflow-y-auto flex-1 bg-gray-50" id="daily-summary-content">
+                <!-- เนื้อหาจะถูกแทรกด้วย JavaScript -->
+            </div>
+            <div class="p-4 border-t bg-white flex-none flex justify-end">
+                <button onclick="document.getElementById('modal-daily-summary').classList.add('hidden')" class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 🌟 MODAL: เพิ่มแผน PM (Preventive Maintenance) 🌟 -->
+    <div id="modal-add-pm-plan" class="fixed inset-0 bg-black bg-opacity-60 z-[300] hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-lg rounded-xl shadow-2xl flex flex-col overflow-hidden animate-fade-in" style="max-height: 90vh; max-height: 90dvh;">
+            <div class="bg-indigo-600 p-4 flex justify-between items-center text-white flex-none">
+                <h3 class="font-bold text-lg flex items-center gap-2">📅 เพิ่มแผนซ่อมบำรุง (PM)</h3>
+                <button onclick="document.getElementById('modal-add-pm-plan').classList.add('hidden')" class="text-white hover:text-indigo-100 text-2xl font-bold leading-none">&times;</button>
+            </div>
+            <div class="p-4 md:p-6 overflow-y-auto flex-1 bg-gray-50 space-y-3">
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-sm font-bold text-gray-700">เครื่องจักร (เลือกได้หลายเครื่อง)</label>
+                        <button type="button" onclick="window.togglePmPlanMachineAll()" class="text-xs font-bold text-indigo-600 hover:underline">เลือก/ยกเลิกทั้งหมด</button>
+                    </div>
+                    <div id="pmplan-machine-grid" class="grid grid-cols-4 gap-2 p-2 border border-gray-300 rounded-lg bg-white max-h-32 overflow-y-auto"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">ประเภทแผน</label>
+                        <select id="pmplan-type" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="PM">PM (Preventive Maintenance)</option>
+                            <option value="AM">AM (Autonomous Maintenance)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">ความถี่</label>
+                        <select id="pmplan-frequency" onchange="document.getElementById('pmplan-interval-wrap').classList.toggle('hidden', this.value !== 'Custom')" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500">
+                            <option value="Daily">รายวัน (Daily)</option>
+                            <option value="Weekly">รายสัปดาห์ (Weekly)</option>
+                            <option value="Monthly" selected>รายเดือน (Monthly)</option>
+                            <option value="Quarterly">ราย 3 เดือน (Quarterly)</option>
+                            <option value="Yearly">รายปี (Yearly)</option>
+                            <option value="Custom">กำหนดเอง (จำนวนวัน)</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="pmplan-interval-wrap" class="hidden">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">ทุกๆ กี่วัน</label>
+                    <input type="number" id="pmplan-interval" min="1" placeholder="เช่น 45" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">ชื่องาน / รายการที่ต้องทำ</label>
+                    <input type="text" id="pmplan-taskname" required placeholder="เช่น อัดจารบี, เปลี่ยนไส้กรอง" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">วันที่ครบกำหนดครั้งแรก</label>
+                        <input type="date" id="pmplan-nextdue" required class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">ผู้รับผิดชอบ (ถ้ามี)</label>
+                        <input type="text" id="pmplan-assignedto" placeholder="ชื่อผู้รับผิดชอบ" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">กะที่ทำรอบแรก</label>
+                    <select id="pmplan-startshift" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500">
+                        <option value="" selected>อัตโนมัติ (กระจาย A/B ให้เท่ากัน)</option>
+                        <option value="A">เริ่มที่กะ A</option>
+                        <option value="B">เริ่มที่กะ B</option>
+                    </select>
+                    <p class="text-[11px] text-gray-500 mt-1">🔄 งานชื่อเดียวกันทุกเครื่องจะอยู่กะเดียวกัน และเข้ารอบ PM พร้อมกัน เมื่อทำครบทุกเครื่อง รอบถัดไปจะส่งต่อให้อีกกะอัตโนมัติ (ถ้ามีงานชื่อนี้อยู่แล้ว จะใช้กะเดิมของงานนั้น)</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">วิธีการทำ Maintenance</label>
+                    <textarea id="pmplan-instruction" rows="3" placeholder="ขั้นตอนการทำงาน เช่น 1. ปิดเบรกเกอร์ 2. ถอดฝาครอบ ..." class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">หมายเหตุ</label>
+                    <textarea id="pmplan-note" rows="2" placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div class="bg-gray-50 p-3 rounded-lg border border-dashed border-gray-300">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">📸 แนบรูปอ้างอิง / วิธีการ (ถ้ามี — ได้สูงสุด 5 รูป)</label>
+                    <input type="file" id="pmplan-photo" accept="image/*" multiple onchange="window.handlePmPlanPhotoSelect(this)" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                    <p class="text-[11px] text-gray-500 mt-1">เลือกได้ทีละหลายรูป หรือเลือกเพิ่มทีละรูปก็ได้ (รูปเดิมจะไม่หาย)</p>
+                    <div id="pmplan-photo-preview" class="mt-3 hidden grid grid-cols-3 gap-2"></div>
+                </div>
+            </div>
+            <div class="p-4 border-t bg-white flex-none flex justify-end gap-2">
+                <button onclick="document.getElementById('modal-add-pm-plan').classList.add('hidden')" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-gray-300 transition-colors">ยกเลิก</button>
+                <button id="pmplan-submit-btn" onclick="window.submitAddPmPlan()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors">💾 บันทึกแผน</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🌟 MODAL: TV Mode (โหมดนำเสนอแบบเต็มจอ) 🌟 -->
+    <div id="modal-tv-mode" class="fixed inset-0 bg-black z-[200] hidden flex-col">
+        <div class="flex justify-between items-center p-4 bg-gray-900 text-white flex-none">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl animate-pulse">🔴</span>
+                <h2 class="text-xl font-bold tracking-widest">CWM TV STATION</h2>
+                <span class="text-xs bg-gray-700 px-2 py-1 rounded-full text-gray-300" id="tv-clock">00:00:00</span>
+            </div>
+            <button onclick="window.stopTVMode()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-bold transition-colors">❌ ออกจาก TV Mode</button>
+        </div>
+        
+        <div class="flex-1 overflow-hidden relative bg-gray-800" id="tv-content-area">
+            <!-- สไลด์จะมาโผล่ตรงนี้ -->
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 📦 MODAL: ระบบจัดการไลน์ Packing & Pallet -->
+    <!-- ========================================== -->
+    <div id="modal-packing" class="fixed inset-0 bg-black bg-opacity-75 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity print-hide">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-indigo-800 to-blue-700 p-4 text-white flex justify-between items-center shrink-0">
+                <div>
+                    <h3 class="text-xl font-black flex items-center gap-2"><span>📦</span> บันทึกงานลงพาเลท (Packing)</h3>
+                    <p class="text-xs text-indigo-200 mt-1">รวมงานจากหลายเครื่องลงพาเลทเดียวโดยไม่ต้องบันทึก NG</p>
+                </div>
+                <button onclick="window.closePackingModal()" class="text-white hover:text-red-300 text-3xl font-bold px-2">&times;</button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 overflow-y-auto flex-1 bg-gray-50">
+                <form id="packingForm" onsubmit="window.submitPacking(event)">
+                    
+                    <!-- ข้อมูลพาเลท -->
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6">
+                        <h4 class="font-bold text-gray-800 mb-3 border-b pb-2 flex items-center gap-2">📑 ข้อมูลพาเลท (Pallet Info)</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">หมายเลขพาเลท (Pallet No.) <span class="text-red-500">*</span></label>
+                                <input type="text" id="pack-pallet-no" required placeholder="เช่น P-01, P-02" class="w-full p-2.5 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 font-bold uppercase text-indigo-700 uppercase">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">หมวดหมู่งาน (Category) <span class="text-red-500">*</span></label>
+                                <select id="pack-category" required class="w-full p-2.5 border rounded focus:ring-2 focus:ring-indigo-500 font-medium">
+                                    <option value="งานขายปกติ" class="text-blue-600 font-bold">✅ 1. งานขายปกติ</option>
+                                    <option value="งานส่งคืนทดแทน" class="text-orange-600 font-bold">🔄 2. งานส่งคืนทดแทน</option>
+                                    <option value="งานลูกค้าตีกลับคัดแล้ว OK" class="text-purple-600 font-bold">♻️ 3. งานลูกค้าตีกลับคัดแล้ว OK</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">วันที่ (Date)</label>
+                                <input type="date" id="pack-date" required class="w-full p-2 border rounded bg-gray-50 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1">ผู้บันทึก (Packer)</label>
+                                <input type="text" id="pack-recorder" readonly class="w-full p-2 border rounded bg-gray-100 text-sm text-gray-500 cursor-not-allowed">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- รายการเครื่องจักรที่นำมาลงพาเลท -->
+                    <div class="mb-2 flex justify-between items-end">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2">🏭 แหล่งที่มาของงาน (Machine Sources)</h4>
+                        <button type="button" onclick="window.addPackingRow()" class="bg-indigo-100 text-indigo-700 border border-indigo-300 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-indigo-200 flex items-center gap-1 shadow-sm transition-all">
+                            <span>+</span> เพิ่มเครื่องจักร
+                        </button>
+                    </div>
+                    
+                    <div id="pack-batch-list" class="space-y-2">
+                        <!-- แถวจะถูกสร้างด้วย JS -->
+                    </div>
+
+                    <!-- Footer Buttons -->
+                    <div class="mt-8 pt-4 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-gray-50 pb-2">
+                        <button type="button" onclick="window.closePackingModal()" class="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-bold hover:bg-gray-100 transition-colors">ยกเลิก</button>
+                        <button type="submit" id="btn-save-pack" class="px-6 py-2.5 rounded-lg bg-indigo-600 text-white font-black hover:bg-indigo-700 shadow-lg flex items-center gap-2 transition-all transform active:scale-95">
+                            <span>🖨️</span> บันทึกและพิมพ์แท็กพาเลท
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts (แก้เป็นเวอร์ชันเพื่อกัน Cache) -->
+    <script src="js/globals.js?v=3.58"></script>
+    <script src="js/auth.js?v=3.58"></script>
+    <script src="js/form.js?v=3.58"></script>
+    <script src="js/planning.js?v=1.1"></script>
+    <script src="js/report/widgets.js?v=4.0"></script>
+    <script src="js/report/auto-report.js?v=4.6"></script>
+    <script src="js/report/export.js?v=4.1"></script>
+    <script src="js/report/dashboard.js?v=4.2"></script>
+    <script src="js/charts/helpers.js?v=4.1"></script>
+    <script src="js/charts/draw-tool.js?v=4.0"></script>
+    <script src="js/charts/models.js?v=4.2"></script>
+    <script src="js/charts/ng-trend.js?v=4.5"></script>
+    <script src="js/charts/main.js?v=5.3"></script>
+    <script src="js/charts/table-machine.js?v=4.2"></script>
+    <script src="js/charts/popups.js?v=4.2"></script>
+    <script src="js/charts/audit.js?v=4.0"></script>
+    <script src="js/charts/chart-audit.js?v=4.2"></script>
+    <script src="js/packing.js?v=3.56"></script>
+    <!-- 🔍 MODAL: ตรวจเช็คอะไหล่ (Parts Inspection) -->
+    <div id="modal-check-part" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="bg-orange-500 p-3 flex justify-between items-center text-white flex-none">
+                <h3 class="font-bold text-base flex items-center gap-2">🔍 ตรวจเช็คอะไหล่: <span id="check-title-name">-</span></h3>
+                <button onclick="window.closeCheckDialog()" class="text-white hover:text-gray-200 text-2xl font-bold leading-none">&times;</button>
+            </div>
+            <div class="p-4 space-y-3 overflow-y-auto flex-1 bg-gray-50">
+                <!-- Hidden fields -->
+                <input type="hidden" id="check-install-id">
+                <input type="hidden" id="check-part-id">
+                <input type="hidden" id="check-part-name">
+                <input type="hidden" id="check-machine">
+                <input type="hidden" id="check-actual-shot">
+                <input type="hidden" id="check-life-shot">
+                <input type="hidden" id="check-interval">
+
+                <!-- Info card -->
+                <div class="bg-orange-50 border border-orange-200 rounded p-2 text-xs grid grid-cols-2 gap-1">
+                    <div>เครื่อง: <span id="check-info-machine" class="font-mono font-bold text-orange-800">-</span></div>
+                    <div>Actual: <span id="check-info-actual" class="font-mono font-bold text-orange-800">-</span> shot</div>
+                    <div>Life: <span id="check-info-life" class="font-mono font-bold text-gray-700">-</span> shot</div>
+                    <div>%: <span id="check-info-pct" class="font-mono font-bold text-gray-700">-</span></div>
+                </div>
+
+                <!-- Result radio -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">ผลการตรวจเช็ค *</label>
+                    <div class="flex flex-col gap-2">
+                        <label class="flex items-center gap-2 p-2 bg-white border border-green-200 rounded cursor-pointer hover:bg-green-50">
+                            <input type="radio" name="check-result" id="check-result-passed" value="Passed" onchange="window.toggleCheckResultFields()" checked>
+                            <span class="text-sm">✅ <b>ใช้ต่อได้</b> — ยังไม่ต้องเปลี่ยน</span>
+                        </label>
+                        <label class="flex items-center gap-2 p-2 bg-white border border-red-200 rounded cursor-pointer hover:bg-red-50">
+                            <input type="radio" name="check-result" id="check-result-replaced" value="Replaced" onchange="window.toggleCheckResultFields()">
+                            <span class="text-sm">❌ <b>ต้องเปลี่ยน</b> — อะไหล่เสื่อมสภาพ (จะเปิด dialog เปลี่ยนอะไหล่ให้)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Note -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">หมายเหตุ / สภาพที่พบ</label>
+                    <textarea id="check-note" rows="2" class="w-full p-2 border rounded text-sm" placeholder="เช่น มีรอยสึกเล็กน้อย, ยางยังแข็ง, ไม่มีรอยแตก..."></textarea>
+                </div>
+
+                <!-- Next Check Shot (hidden when Replaced) -->
+                <div id="check-next-shot-section">
+                    <label class="block text-xs font-bold text-gray-700 mb-1">ตรวจเช็คครั้งถัดไปที่ (Shot)</label>
+                    <input type="number" id="check-next-shot" class="w-full p-2 border rounded text-sm font-mono" min="0">
+                    <div class="text-[11px] text-gray-500 mt-1">💡 ค่าเริ่มต้น = Actual + Check Interval · ปรับเพิ่มได้ถ้าอะไหล่ยังอยู่ในสภาพดี</div>
+                </div>
+
+                <!-- Photos -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">📸 แนบรูปสภาพอะไหล่ (สูงสุด 5 รูป)</label>
+                    <input type="file" id="check-photo-input" accept="image/*" multiple capture="environment" onchange="window.handleCheckPhotoSelect(event)" class="w-full p-2 border rounded text-xs bg-white">
+                    <div id="check-photo-status" class="text-xs text-orange-600 mt-1"></div>
+                    <div id="check-photo-preview" class="mt-2"></div>
+                    <div class="text-[11px] text-gray-500 mt-1">💡 รูปจะถูกย่อ 1280px JPEG q75 ก่อนส่ง เพื่อประหยัดพื้นที่</div>
+                </div>
+            </div>
+            <div class="p-3 border-t bg-white flex-none flex gap-2">
+                <button type="button" id="btn-confirm-check" onclick="window.submitPartCheck()" class="flex-1 bg-orange-600 text-white py-2 rounded font-bold hover:bg-orange-700 text-sm">💾 บันทึกผลตรวจเช็ค</button>
+                <button type="button" onclick="window.closeCheckDialog()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded font-bold hover:bg-gray-400 text-sm">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🗓️ MODAL: ประวัติการติดตั้งอะไหล่ -->
+    <div id="modal-part-history" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="bg-teal-700 p-3 flex justify-between items-center text-white flex-none">
+                <h3 id="part-history-title" class="font-bold text-base">🗓️ ประวัติการติดตั้ง</h3>
+                <button onclick="window.closePartHistory()" class="text-white hover:text-gray-200 text-2xl font-bold leading-none">&times;</button>
+            </div>
+            <div id="part-history-body" class="p-4 overflow-y-auto flex-1 bg-gray-50"></div>
+            <div class="p-3 border-t bg-white flex-none flex justify-end">
+                <button onclick="window.closePartHistory()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded font-bold hover:bg-gray-400 text-sm">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📋 MODAL: ประวัติการตรวจเช็ค -->
+    <div id="modal-check-history" class="fixed inset-0 bg-black bg-opacity-50 z-[70] hidden flex items-center justify-center p-4 print-hide">
+        <div class="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="bg-gray-700 p-3 flex justify-between items-center text-white flex-none">
+                <h3 id="check-history-title" class="font-bold text-base">📋 ประวัติการตรวจเช็ค</h3>
+                <button onclick="window.closeCheckHistory()" class="text-white hover:text-gray-200 text-2xl font-bold leading-none">&times;</button>
+            </div>
+            <div id="check-history-body" class="p-4 overflow-y-auto flex-1 bg-gray-50"></div>
+            <div class="p-3 border-t bg-white flex-none flex justify-end">
+                <button onclick="window.closeCheckHistory()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded font-bold hover:bg-gray-400 text-sm">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/scrap.js?v=2.1"></script>
+    <script src="js/dailycheck.js?v=1.0"></script>
+    <script src="js/parts.js?v=5.3"></script>
+    <script src="js/inbox.js?v=2.6"></script>
+    <script src="js/cost.js?v=1.2"></script>
+
+    <!-- Script ทั่วไปสำหรับ UI ย่อยๆ -->
+    <script>
+        // ฟังก์ชันช่วยจัดการเวลาที่มีปัญหา ISO String (TZ) จาก Google Sheets
+        function formatTimeStr(val) {
+            if (!val) return '';
+            let str = String(val).trim();
+            if (str.includes('T')) {
+                try {
+                    let d = new Date(str);
+                    if(!isNaN(d.getTime())) {
+                        return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+                    }
+                } catch(e){}
+            }
+            let m = str.match(/(\d{1,2}:\d{2})/);
+            return m ? m[1].padStart(5, '0') : str.substring(0, 5);
+        }
+
+        // ฟังก์ชันตัวช่วยดึง Thumbnail จาก Google Drive URL
+        function getThumbUrl(url) {
+            if (!url) return null;
+            let fileId = '';
+            const matchD = url.match(/\/d\/(.+?)\//);
+            const matchId = url.match(/id=([^&]+)/);
+            if (matchD && matchD[1]) fileId = matchD[1];
+            else if (matchId && matchId[1]) fileId = matchId[1];
+            return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w400` : null;
+        }
+
+        // Safe Caller Function ป้องกันปัญหาโหลดหน้าเว็บไม่สมบูรณ์
+        function safeLoadDashboard() {
+            const debugPanel = document.getElementById('debug-panel');
+            const debugOut = document.getElementById('debug-output');
+            try {
+                if (typeof window.loadDashboard === 'function') {
+                    window.loadDashboard().catch(err => {
+                        console.error(err);
+                        alert("เกิดข้อผิดพลาดในการดึงข้อมูล: " + err.message);
+                        if (debugPanel) debugPanel.classList.remove('hidden');
+                        if (debugOut) debugOut.innerText += "\n" + err.stack;
+                    });
+                } else {
+                    alert("⚠️ ไฟล์ระบบทำงานไม่สมบูรณ์ หรืออาจติด Cache เก่า\n\nกรุณากดปุ่ม Ctrl + F5 (หรือ Cmd + Shift + R สำหรับ Mac) บนคีย์บอร์ดเพื่อรีเฟรชหน้าเว็บแบบล้างแคชครับ");
+                }
+            } catch(e) {
+                alert("เกิดข้อผิดพลาดที่ปุ่ม: " + e.message);
+            }
+        }
+
+        window.openChangePasswordModal = function() {
+            const modal = document.getElementById('modal-change-password');
+            if(modal) {
+                modal.classList.remove('hidden');
+                document.getElementById('change-old-password').value = '';
+                document.getElementById('change-new-password').value = '';
+                document.getElementById('change-confirm-password').value = '';
+            }
+        };
+
+        window.closeChangePasswordModal = function() {
+            const modal = document.getElementById('modal-change-password');
+            if(modal) modal.classList.add('hidden');
+        };
+
+        window.switchMachineDetailTab = function(tabName) {
+            const tabs = { chart: 'tab-md-chart', maint: 'tab-md-maint', parts: 'tab-md-parts' };
+            const sections = { chart: 'md-section-chart', maint: 'md-section-maint', parts: 'md-section-parts' };
+            const colors = { chart: 'blue', maint: 'orange', parts: 'cyan' };
+            const inactive = "py-2 px-4 border-b-2 border-transparent text-gray-500 font-bold hover:text-gray-700 focus:outline-none";
+
+            Object.keys(tabs).forEach(key => {
+                const tabEl = document.getElementById(tabs[key]);
+                const secEl = document.getElementById(sections[key]);
+                if (key === tabName) {
+                    if (tabEl) tabEl.className = `py-2 px-4 border-b-2 border-${colors[key]}-600 text-${colors[key]}-600 font-bold focus:outline-none`;
+                    if (secEl) secEl.classList.remove('hidden');
+                } else {
+                    if (tabEl) tabEl.className = inactive;
+                    if (secEl) secEl.classList.add('hidden');
+                }
+            });
+
+            // โหลดอะไหล่เมื่อสลับไป tab parts
+            if (tabName === 'parts') {
+                const macTitle = document.getElementById('machine-detail-title');
+                if (macTitle) {
+                    const mac = macTitle.innerText.match(/CWM-\d+/);
+                    if (mac) window.loadMachineParts(mac[0]);
+                }
+            }
+        };
+
+        document.getElementById('maint-photo')?.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('maint-photo-img').src = e.target.result;
+                    document.getElementById('maint-photo-preview').classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // pmplan-photo รองรับหลายรูป — จัดการใน js/inbox.js (window.handlePmPlanPhotoSelect)
+
+        // Script สำหรับ RTV
+        document.addEventListener('DOMContentLoaded', () => {
+            const rtvDate = document.getElementById('rtvDate');
+            const rtvRec = document.getElementById('rtvRecorder');
+            if(rtvDate) rtvDate.value = getShiftDateStr();
+            
+            document.getElementById('tab-rtv')?.addEventListener('click', () => {
+                if(rtvRec && window.currentUser) rtvRec.value = window.currentUser.name || window.currentUser.username;
+            });
+
+            window.renderRtvSymptomsOptions = function() {
+                const select = document.getElementById('rtvRemark');
+                if(!select) return;
+                const currentVal = select.value;
+                select.innerHTML = '<option value="">-- เลือกอาการเสีย --</option>';
+                ngSymptoms.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.text = s;
+                    select.appendChild(opt);
+                });
+                if(currentVal && ngSymptoms.includes(currentVal)) select.value = currentVal;
+            };
+
+            const rtvForm = document.getElementById('rtvForm');
+            if (rtvForm) {
+                rtvForm.onsubmit = async (e) => {
+                    e.preventDefault();
+                    const btn = document.getElementById('btn-save-rtv');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = "⏳ กำลังบันทึก...";
+                    btn.disabled = true;
+
+                    const payload = {
+                        action: 'SAVE_RTV',
+                        date: document.getElementById('rtvDate').value,
+                        recorder: document.getElementById('rtvRecorder').value,
+                        source: '-',
+                        product: document.getElementById('rtvProduct').value,
+                        qty: document.getElementById('rtvQty').value,
+                        remark: document.getElementById('rtvRemark').value,
+                        customerRef: document.getElementById('rtvCustomerRef').value.trim()
+                    };
+
+                    try {
+                        const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+                        const result = await res.json();
+                        
+                        if (result.status === 'success') {
+                            alert("✅ บันทึกงานเคลม (RTV) สำเร็จ");
+                            rtvForm.reset();
+                            rtvDate.value = getShiftDateStr();
+                            rtvRec.value = window.currentUser.name || window.currentUser.username;
+                        } else {
+                            alert("❌ เกิดข้อผิดพลาด: " + result.message);
+                        }
+                    } catch(err) {
+                        alert("❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+                    } finally {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                };
+            }
+        });
+
+        setTimeout(() => {
+            const pwdForm = document.getElementById('changePasswordForm');
+            if (pwdForm) {
+                pwdForm.onsubmit = async (e) => {
+                    e.preventDefault();
+                    if (!window.currentUser) return;
+
+                    const oldPw = document.getElementById('change-old-password').value.trim();
+                    const newPw = document.getElementById('change-new-password').value.trim();
+                    const confPw = document.getElementById('change-confirm-password').value.trim();
+
+                    if(newPw !== confPw) {
+                        alert('รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน!');
+                        return;
+                    }
+
+                    const btn = document.getElementById('btn-submit-change-pwd');
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = "⏳ กำลังดำเนินการ...";
+
+                    try {
+                        const payload = {
+                            action: 'CHANGE_PASSWORD',
+                            username: window.currentUser.username,
+                            role: window.currentUser.role,
+                            oldPassword: oldPw,
+                            newPassword: newPw
+                        };
+                        const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            alert(data.message + "\nกรุณาล็อคอินใหม่อีกครั้งด้วยรหัสผ่านใหม่");
+                            window.closeChangePasswordModal();
+                            if(typeof window.logout === 'function') window.logout(); 
+                        } else {
+                            alert("ผิดพลาด: " + data.message);
+                        }
+                    } catch (err) {
+                        alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                };
+            }
+        }, 500);
+
+        // 🌟 โค้ดตั้งค่าช่องเวลาให้ออกมาเป็น 24 ชม.
+        document.addEventListener("DOMContentLoaded", function() {
+            if(document.getElementById("maint-start-time")) {
+                flatpickr("#maint-start-time", {
+                    enableTime: true,
+                    noCalendar: true,
+                    dateFormat: "H:i",
+                    time_24hr: true
+                });
+            }
+            if(document.getElementById("maint-end-time")) {
+                flatpickr("#maint-end-time", {
+                    enableTime: true,
+                    noCalendar: true,
+                    dateFormat: "H:i",
+                    time_24hr: true
+                });
+            }
+        });
+
+        // ==========================================
+        // 🌟 เพิ่มสคริปต์สำหรับจัดการซ่อมค้าง (Pending Maintenance)
+        // ==========================================
+        window.openMaintenanceModal = function() {
+            const modal = document.getElementById('modal-maintenance');
+            const dDate = document.getElementById('maint-date');
+            const dRec = document.getElementById('maint-reporter');
+            const dMac = document.getElementById('maint-machine');
+            const dStart = document.getElementById('maint-start-time');
+            
+            // รีเซ็ตฟอร์มให้กลับเป็นโหมด "เปิดแจ้งซ่อมใหม่"
+            window.clearPendingSelection();
+            
+            if (dDate) dDate.value = getShiftDateStr();
+            if (dRec && window.currentUser) dRec.value = window.currentUser.name || window.currentUser.username;
+            
+            if (dMac) {
+                let macOpts = '<option value="">-- เลือกเครื่องจักร --</option>';
+                for(let i=1; i<=16; i++) {
+                    macOpts += `<option value="CWM-${String(i).padStart(2,'0')}">CWM-${String(i).padStart(2,'0')}</option>`;
+                }
+                dMac.innerHTML = macOpts;
+            }
+            
+            if (dStart) {
+                const now = new Date();
+                const nowStr = now.toTimeString().substring(0,5);
+                if(dStart._flatpickr) {
+                    dStart._flatpickr.setDate(nowStr);
+                } else {
+                    dStart.value = nowStr;
+                }
+            }
+
+            // ดึงข้อมูลงานค้างจากเซิร์ฟเวอร์
+            window.fetchPendingJobs();
+
+            if (modal) modal.classList.remove('hidden');
+        };
+
+        window.fetchPendingJobs = async function() {
+            const container = document.getElementById('pending-maint-container');
+            const list = document.getElementById('pending-maint-list');
+            
+            if (!container || !list) return;
+            
+            list.innerHTML = '<p class="text-gray-500 text-center py-2">กำลังตรวจสอบงานค้าง...</p>';
+            container.classList.remove('hidden');
+
+            try {
+                // เรียกใช้ GET_PENDING_MAINTENANCE ที่ฝั่ง Backend
+                const res = await fetch(SCRIPT_URL + '?action=GET_PENDING_MAINTENANCE');
+                const data = await res.json();
+                
+                if (data.status === 'success' && data.data.length > 0) {
+                    let html = '';
+                    data.data.forEach(job => {
+                        html += `
+                        <div class="bg-white p-2 rounded border border-yellow-200 flex justify-between items-center cursor-pointer hover:bg-yellow-100 transition-colors" onclick='window.loadPendingJob(${JSON.stringify(job)})'>
+                            <div class="flex-1">
+                                <span class="font-bold text-orange-700">${job.jobId}</span> | <b class="text-gray-800">${job.machine}</b><br>
+                                <span class="text-gray-600">วันที่แจ้ง: ${job.date} เวลา ${job.startTime} น.<br>อาการ: ${job.issueType}</span>
+                            </div>
+                            <button type="button" class="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-2 rounded text-[10px] font-bold shadow-sm whitespace-nowrap ml-2">ดึงมาปิดจ๊อบ</button>
+                        </div>`;
+                    });
+                    list.innerHTML = html;
+                } else {
+                    container.classList.add('hidden'); 
+                }
+            } catch(e) {
+                list.innerHTML = '<p class="text-red-500 text-center py-2">ไม่สามารถโหลดข้อมูลงานค้างได้</p>';
+            }
+        };
+
+        window.loadPendingJob = function(job) {
+            // เซ็ตค่าลงในฟอร์ม
+            document.getElementById('maint-job-id').value = job.jobId;
+            document.getElementById('maint-date').value = job.date;
+            
+            const macSelect = document.getElementById('maint-machine');
+            if(macSelect.querySelector(`option[value="${job.machine}"]`)) {
+                macSelect.value = job.machine;
+            }
+            
+            const issueSelect = document.getElementById('maint-issue-type');
+            if(issueSelect.querySelector(`option[value="${job.issueType}"]`)) {
+                 issueSelect.value = job.issueType;
+            } else {
+                 issueSelect.innerHTML += `<option value="${job.issueType}">${job.issueType}</option>`;
+                 issueSelect.value = job.issueType;
+            }
+            
+            // ใช้ Flatpickr เซ็ตค่าเวลา (ถ้ามี)
+            if(document.getElementById('maint-start-time')._flatpickr) {
+                document.getElementById('maint-start-time')._flatpickr.setDate(job.startTime);
+            } else {
+                document.getElementById('maint-start-time').value = job.startTime;
+            }
+            document.getElementById('maint-remark').value = job.remark || '';
+
+            // ล็อคช่องที่ไม่ให้แก้ (เพราะเป็นข้อมูลที่เคยเปิดไว้แล้ว)
+            document.getElementById('maint-date').style.pointerEvents = 'none';
+            document.getElementById('maint-date').classList.add('bg-gray-100', 'text-gray-500');
+            
+            document.getElementById('maint-machine').style.pointerEvents = 'none';
+            document.getElementById('maint-machine').classList.add('bg-gray-100', 'text-gray-500');
+            
+            document.getElementById('maint-issue-type').style.pointerEvents = 'none';
+            document.getElementById('maint-issue-type').classList.add('bg-gray-100', 'text-gray-500');
+            
+            // 🌟 ให้ตั้งชื่อคนปิดจ๊อบปัจจุบัน 🌟
+            document.getElementById('maint-closer-name').innerText = window.currentUser ? window.currentUser.name || window.currentUser.username : "Unknown";
+            
+            // 🌟 เตรียมช่องถ่ายรูปรอบที่ 2 🌟
+            document.getElementById('maint-photo-label').innerText = '📸 ถ่ายรูปหลักฐานหลังซ่อมเสร็จ (ปิดจ๊อบ)';
+            document.getElementById('maint-photo').value = '';
+            document.getElementById('maint-photo-img').src = '';
+            document.getElementById('maint-photo-preview').classList.add('hidden');
+            
+            // แสดงช่องวันที่ซ่อมเสร็จและผู้ปิดจ๊อบ
+            document.getElementById('maint-end-date-wrapper').classList.remove('hidden');
+            document.getElementById('maint-end-date').value = getShiftDateStr(); // ค่าเริ่มต้นคือวันนี้
+
+            // เปลี่ยนหน้าตาปุ่มและข้อความ
+            document.getElementById('btn-save-maint').innerHTML = '✅ บันทึกเวลาและปิดจ๊อบ';
+            document.getElementById('btn-save-maint').classList.replace('bg-orange-600', 'bg-green-600');
+            document.getElementById('btn-save-maint').classList.replace('hover:bg-orange-700', 'hover:bg-green-700');
+            document.getElementById('maint-end-hint').innerText = '*กรุณาระบุเวลาที่ซ่อมเสร็จ';
+            document.getElementById('btn-clear-pending').classList.remove('hidden');
+        };
+
+        window.clearPendingSelection = function() {
+            document.getElementById('maint-job-id').value = '';
+            document.getElementById('maintenanceForm').reset();
+            
+            // ปลดล็อคฟิลด์
+            const fields = ['maint-date', 'maint-machine', 'maint-issue-type'];
+            fields.forEach(f => {
+                document.getElementById(f).style.pointerEvents = '';
+                document.getElementById(f).classList.remove('bg-gray-100', 'text-gray-500');
+            });
+            
+            // 🌟 คืนค่าช่องรูปภาพให้เป็นตอนเปิดแจ้งซ่อม 🌟
+            document.getElementById('maint-photo-label').innerText = '📸 ถ่ายรูปหลักฐานตอนเปิดแจ้งซ่อม';
+            document.getElementById('maint-photo-preview').classList.add('hidden');
+
+            document.getElementById('maint-end-date-wrapper').classList.add('hidden');
+            document.getElementById('btn-clear-pending').classList.add('hidden');
+            
+            document.getElementById('btn-save-maint').innerHTML = '💾 บันทึกเปิดแจ้งซ่อม';
+            document.getElementById('btn-save-maint').classList.replace('bg-green-600', 'bg-orange-600');
+            document.getElementById('btn-save-maint').classList.replace('hover:bg-green-700', 'hover:bg-orange-700');
+            document.getElementById('maint-end-hint').innerText = '*เว้นว่างไว้ถ้ายังซ่อมไม่เสร็จ';
+            
+            document.getElementById('maint-date').value = getShiftDateStr();
+            const now = new Date();
+            if(document.getElementById('maint-start-time')._flatpickr) {
+                document.getElementById('maint-start-time')._flatpickr.setDate(now.toTimeString().substring(0,5));
+            }
+        };
+
+        // 🌟 ตัวแปรป้องกันการกดเบิ้ล (Frontend Lock) 🌟
+        let isSubmittingMaintenance = false;
+
+        // 🌟 แก้ไขฟังก์ชันการ Submit ของฟอร์มแจ้งซ่อม พร้อมระบบบีบอัดรูปภาพและกันเบิ้ล 🌟
+        document.getElementById('maintenanceForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // ถ้ากำลังบันทึกอยู่ ให้หยุดการทำงานทันที (ไม่ทำซ้ำ)
+            if (isSubmittingMaintenance) {
+                console.log("บล็อกการส่งข้อมูลซ้ำ");
+                return;
+            }
+            
+            isSubmittingMaintenance = true; // ล็อคประตู
+
+            const btn = document.getElementById('btn-save-maint');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ กำลังดำเนินการ...";
+            btn.disabled = true;
+
+            const fileInput = document.getElementById('maint-photo');
+            let base64String = "";
+            const jobId = document.getElementById('maint-job-id').value;
+
+            // ตรวจสอบ: ถ้าเป็นการปิดจ๊อบข้ามวัน บังคับให้ใส่เวลาเสร็จ
+            if (jobId && !document.getElementById('maint-end-time').value) {
+                alert("❌ กรุณาระบุ 'ทำงานต่อ (End)' เพื่อปิดจ๊อบ");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                isSubmittingMaintenance = false; // ปลดล็อค
+                return;
+            }
+
+            // 🌟 ฟังก์ชันสำหรับบีบอัดรูปภาพ (Compress Image) ให้ขนาดประมาณ ไม่เกิน maxSizeKB 🌟
+            async function compressImage(file, maxSizeKB) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.src = event.target.result;
+                        img.onload = function() {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+
+                            // ย่อขนาดภาพไม่ให้เกิน 1200px ก่อน
+                            const MAX_DIMENSION = 1200;
+                            if (width > height && width > MAX_DIMENSION) {
+                                height *= MAX_DIMENSION / width;
+                                width = MAX_DIMENSION;
+                            } else if (height > MAX_DIMENSION) {
+                                width *= MAX_DIMENSION / height;
+                                height = MAX_DIMENSION;
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            let quality = 0.8;
+                            let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                            
+                            // วนลูปบีบอัด Quality ลงเรื่อยๆ จนกว่าขนาดไฟล์จะเล็กกว่า 256KB หรือคุณภาพเหลือ 10%
+                            while (Math.round((dataUrl.length * 3 / 4) / 1024) > maxSizeKB && quality > 0.1) {
+                                quality -= 0.1;
+                                dataUrl = canvas.toDataURL('image/jpeg', quality);
+                            }
+                            resolve(dataUrl);
+                        };
+                        img.onerror = reject;
+                    };
+                    reader.onerror = reject;
+                });
+            }
+
+            // แปลงรูปภาพและบีบอัด (ทำได้ทั้งตอนเปิดจ๊อบใหม่และตอนปิดจ๊อบค้าง)
+            if (fileInput && fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                try {
+                    btn.innerHTML = "⏳ กำลังบีบอัดรูปภาพ...";
+                    base64String = await compressImage(file, 256); // ส่งไปบีบอัดให้ไม่เกิน 256KB
+                    btn.innerHTML = "⏳ กำลังบันทึกข้อมูล...";
+                } catch (err) {
+                    console.error("Error compressing file:", err);
+                    alert("❌ ไม่สามารถประมวลผลไฟล์ภาพได้ กรุณาลองใหม่อีกครั้ง");
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    isSubmittingMaintenance = false; // ปลดล็อค
+                    return;
+                }
+            }
+
+            const payload = {
+                action: 'SAVE_MAINTENANCE',
+                jobId: jobId, // ถ้ามีแปลว่าอัปเดต ถ้าว่างแปลว่าสร้างใหม่
+                username: window.currentUser ? window.currentUser.username : "Unknown",
+                role: window.currentUser ? window.currentUser.role : "Unknown",
+                date: document.getElementById('maint-date').value,
+                machine: document.getElementById('maint-machine').value,
+                issueType: document.getElementById('maint-issue-type').value,
+                startTime: document.getElementById('maint-start-time').value,
+                endDate: document.getElementById('maint-end-date') ? document.getElementById('maint-end-date').value : "", 
+                endTime: document.getElementById('maint-end-time').value || "",
+                remark: document.getElementById('maint-remark').value,
+                imageBase64: base64String // ส่งภาพไปให้ Backend (เป็นของใหม่เสมอ ไม่ว่าจะเปิดหรือปิดจ๊อบ)
+            };
+
+            try {
+                const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const result = await res.json();
+                
+                if (result.status === 'success') {
+                    alert("✅ " + result.message);
+                    window.clearPendingSelection();
+                    document.getElementById('maint-photo-preview').classList.add('hidden');
+                    document.getElementById('modal-maintenance').classList.add('hidden');
+                } else {
+                    alert("❌ เกิดข้อผิดพลาด: " + result.message);
+                }
+            } catch(err) {
+                alert("❌ เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                isSubmittingMaintenance = false; // ปลดล็อคประตูเมื่อเสร็จสิ้นทุกอย่าง
+            }
+        });
+
+        // ==========================================
+        // 🌟 ฟังก์ชันสำหรับเปิด Modal สรุปงานซ่อมรายวัน (Idea 3) 🌟
+        // ==========================================
+        window.dailySummarySortOrder = 'desc'; // 'desc' = ใหม่ไปเก่า, 'asc' = เก่าไปใหม่
+
+        window.openDailySummaryModal = function() {
+            if (!currentDashboardData) {
+                alert("กรุณากด 'ค้นหา' เพื่อโหลดข้อมูล Dashboard ก่อนครับ");
+                return;
+            }
+
+            window.dailySummarySortOrder = 'desc';
+            renderDailySummaryContent();
+
+            const modal = document.getElementById('modal-daily-summary');
+            modal.classList.remove('hidden');
+            modal.style.setProperty('z-index', '999999', 'important');
+        };
+
+        window.toggleDailySummarySort = function() {
+            window.dailySummarySortOrder = window.dailySummarySortOrder === 'desc' ? 'asc' : 'desc';
+            renderDailySummaryContent();
+        };
+
+        // แปลงวันที่+เวลาของรายการแจ้งซ่อมเป็นค่าตัวเลขไว้เรียงลำดับ
+        function getMaintLogTimestamp(log) {
+            let sTime = formatTimeStr(log.startTime) || '00:00';
+            let d = new Date(`${log.date || ''} ${sTime}`);
+            return isNaN(d.getTime()) ? 0 : d.getTime();
+        }
+
+        function renderDailySummaryContent() {
+            const content = document.getElementById('daily-summary-content');
+
+            const maintLogs = [...(currentDashboardData.maintenanceLogs || [])];
+            const rtvLogs = currentDashboardData.rtvLogs || [];
+
+            maintLogs.sort((a, b) => {
+                let diff = getMaintLogTimestamp(a) - getMaintLogTimestamp(b);
+                return window.dailySummarySortOrder === 'asc' ? diff : -diff;
+            });
+
+            // สรุปสถิติเบื้องต้น
+            let totalMaint = maintLogs.length;
+            let totalRtv = rtvLogs.length;
+            let totalDowntimeMins = 0;
+            
+            let html = `<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500">
+                    <p class="text-xs text-gray-500 font-bold">แจ้งซ่อม/ปัญหา (เคส)</p>
+                    <p class="text-2xl font-black text-orange-600 mt-1">${totalMaint}</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-teal-500">
+                    <p class="text-xs text-gray-500 font-bold">งานเคลม RTV (รายการ)</p>
+                    <p class="text-2xl font-black text-teal-600 mt-1">${totalRtv}</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500">
+                    <p class="text-xs text-gray-500 font-bold">รวมเวลา Downtime โดยประมาณ</p>
+                    <p class="text-2xl font-black text-red-600 mt-1" id="summary-total-downtime">0 นาที</p>
+                </div>
+            </div>`;
+
+            // ส่วนรายการแจ้งซ่อม
+            html += `<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h4 class="font-bold text-gray-800 text-lg flex items-center gap-2">🛠️ รายการปัญหาเครื่องจักร</h4>
+                <button onclick="window.toggleDailySummarySort()" class="bg-white border border-gray-200 text-gray-600 text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:border-amber-300 hover:text-amber-600 transition-colors flex items-center gap-1">
+                    ${window.dailySummarySortOrder === 'asc' ? '⬆️ เก่า → ใหม่' : '⬇️ ใหม่ → เก่า'}
+                </button>
+            </div>`;
+            if (totalMaint === 0) {
+                html += `<div class="bg-white p-6 rounded-xl shadow-sm text-center text-gray-400 mb-6 border border-dashed">🎉 ไม่มีรายการแจ้งปัญหาในรอบวันที่เลือก</div>`;
+            } else {
+                html += `<div class="space-y-3 mb-6">`;
+                maintLogs.forEach(log => {
+                    let sTime = formatTimeStr(log.startTime);
+                    let eTime = formatTimeStr(log.endTime);
+                    
+                    // คำนวณ Downtime
+                    let durationStr = '<span class="text-red-500">ยังไม่ปิดจ๊อบ</span>';
+                    if (sTime && eTime) {
+                        try {
+                            let s = sTime.split(':');
+                            let e = eTime.split(':');
+                            let mins = (parseInt(e[0])*60 + parseInt(e[1])) - (parseInt(s[0])*60 + parseInt(s[1]));
+                            if (mins < 0) mins += 1440;
+                            totalDowntimeMins += mins;
+                            let h = Math.floor(mins / 60);
+                            let m = mins % 60;
+                            durationStr = h > 0 ? `${h} ชม. ${m} นาที` : `${m} นาที`;
+                        } catch(e){}
+                    }
+
+                    // จัดการสีของประเภท
+                    let badgeColor = 'bg-gray-100 text-gray-700';
+                    if(log.issueType.includes('Machine Breakdown')) badgeColor = 'bg-red-100 text-red-700 border border-red-200';
+                    else if(log.issueType.includes('PM') || log.issueType.includes('AM')) badgeColor = 'bg-blue-100 text-blue-700 border border-blue-200';
+                    else if(log.issueType.includes('Material')) badgeColor = 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+                    else if(log.issueType.includes('Quality')) badgeColor = 'bg-purple-100 text-purple-700 border border-purple-200';
+
+                    let dateShow = log.date ? log.date + ' ' : '';
+                    let timeShow = dateShow + sTime + (eTime ? ' - ' + eTime : ' (รอดำเนินการ)');
+
+                    // รูปภาพประกอบ (ถ้ามี)
+                    let photoHtml = '';
+                    if (log.imageUrl) {
+                        let thumbs = log.imageUrl.split('|').map(u => u.trim()).filter(Boolean).map(getThumbUrl).filter(Boolean);
+                        if (thumbs.length) {
+                            photoHtml = `<div class="flex gap-2 mt-2 flex-wrap">${thumbs.map(t => `<img src="${t}" onerror="this.style.display='none'" onclick="window.open('${t}', '_blank')" class="w-16 h-16 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity">`).join('')}</div>`;
+                        }
+                    }
+
+                    html += `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-amber-300 transition-colors">
+                        <div class="flex flex-wrap justify-between items-start gap-2 mb-2">
+                            <div>
+                                <span class="font-black text-gray-800 text-sm mr-2">${log.machine}</span>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${badgeColor}">${log.issueType}</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-gray-500 font-medium">⏱️ ${timeShow}</div>
+                                <div class="text-[10px] font-bold text-red-500 mt-0.5">Downtime: ${durationStr}</div>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-600 bg-gray-50 p-2 rounded">${log.remark || '-'}</p>
+                        ${photoHtml}
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+
+            // ส่วนรายการ RTV
+            html += `<h4 class="font-bold text-gray-800 text-lg mb-3 flex items-center gap-2">📦 รายการเคลม RTV</h4>`;
+            if (totalRtv === 0) {
+                html += `<div class="bg-white p-6 rounded-xl shadow-sm text-center text-gray-400 border border-dashed">🎉 ไม่มีงานเคลม RTVในรอบวันที่เลือก</div>`;
+            } else {
+                html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">`;
+                rtvLogs.forEach(log => {
+                    html += `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-red-100 border-l-4 border-l-red-500">
+                        <div class="font-bold text-gray-800 text-sm mb-1">${log.product}</div>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded">${log.qty} ชิ้น</span>
+                            <span class="text-gray-500 text-xs">📝 ${log.remark}</span>
+                        </div>
+                        ${log.customerRef ? `<div class="text-xs text-teal-700 mt-1 bg-teal-50 px-2 py-0.5 rounded">📄 Ref: ${log.customerRef}</div>` : ''}
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+
+            content.innerHTML = html;
+            
+            // อัปเดตยอดรวมเวลา
+            let tH = Math.floor(totalDowntimeMins / 60);
+            let tM = totalDowntimeMins % 60;
+            const domTotalDowntime = document.getElementById('summary-total-downtime');
+            if(domTotalDowntime) {
+                 domTotalDowntime.innerText = tH > 0 ? `${tH} ชม. ${tM} นาที` : `${tM} นาที`;
+            }
+        }
+
+        // ==========================================
+        // 🌟 ฟังก์ชันสำหรับเปิด TV Mode (นำเสนอข้อมูลแบบเจาะจงซ่อมบำรุงและ RTV พร้อมรูปภาพ) 🌟
+        // ==========================================
+        let tvModeInterval = null;
+        let tvClockInterval = null;
+        let tvSlides = [];
+        let currentSlideIdx = 0;
+
+        window.startTVMode = function() {
+            if (!currentDashboardData) {
+                alert("กรุณากด 'ค้นหา' เพื่อโหลดข้อมูล Dashboard ก่อนใช้งาน TV Mode ครับ");
+                return;
+            }
+
+            const modal = document.getElementById('modal-tv-mode');
+            const contentArea = document.getElementById('tv-content-area');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            // เข้าสู่โหมด Fullscreen (ถ้า Browser รองรับ)
+            try {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) { /* Safari */
+                    document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) { /* IE11 */
+                    document.documentElement.msRequestFullscreen();
+                }
+            } catch(e) {}
+
+            // อัปเดตนาฬิกา
+            tvClockInterval = setInterval(() => {
+                const now = new Date();
+                document.getElementById('tv-clock').innerText = now.toLocaleTimeString('th-TH');
+            }, 1000);
+
+            const maintLogs = currentDashboardData.maintenanceLogs || [];
+            const rtvLogs = currentDashboardData.rtvLogs || [];
+            tvSlides = [];
+            
+            // กรองข้อมูลแจ้งซ่อมเป็น 2 กลุ่ม
+            const pendingMaint = maintLogs.filter(m => !m.endTime);
+            const completedMaint = maintLogs.filter(m => m.endTime);
+
+            // ถ้าไม่มีข้อมูลอะไรเลยในวันนี้
+            if (pendingMaint.length === 0 && completedMaint.length === 0 && rtvLogs.length === 0) {
+                tvSlides.push(`
+                    <div class="h-full w-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-gray-800 to-green-900 animate-fade-in text-white">
+                        <div class="text-9xl mb-6">🎉</div>
+                        <h1 class="text-5xl font-black mb-4 text-green-400">วันนี้ระบบราบรื่น</h1>
+                        <p class="text-2xl text-gray-300">ไม่มีรายงานปัญหาเครื่องจักรและงานเคลม RTV</p>
+                    </div>
+                `);
+            }
+
+            // สไลด์ 1: งานซ่อมบำรุงที่ค้างอยู่ (Active Issues) พร้อมรูปภาพใบแรก
+            if (pendingMaint.length > 0) {
+                let mHtml = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-6xl">';
+                pendingMaint.slice(0, 4).forEach(log => {
+                    let sTime = formatTimeStr(log.startTime);
+                    let imgHtml = '<div class="text-6xl animate-pulse flex-none w-24 text-center">⚠️</div>';
+                    if (log.imageUrl) {
+                        let firstImg = log.imageUrl.split('|')[0];
+                        let thumb = getThumbUrl(firstImg);
+                        if (thumb) {
+                            imgHtml = `<img src="${thumb}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-xl shadow-md border-2 border-red-500/50 flex-none bg-gray-900"><div class="text-6xl animate-pulse hidden flex-none w-24 text-center">⚠️</div>`;
+                        }
+                    }
+
+                    mHtml += `
+                    <div class="bg-gray-800 p-6 rounded-xl border-l-8 border-red-500 shadow-lg flex items-center gap-6">
+                        ${imgHtml}
+                        <div class="flex-1 overflow-hidden">
+                            <div class="text-2xl md:text-3xl font-black text-white mb-2 truncate">${log.machine} <span class="bg-red-500 text-white text-sm px-3 py-1 rounded-full ml-2 align-middle">${log.issueType}</span></div>
+                            <div class="text-gray-400 text-lg md:text-xl font-medium">เวลาแจ้ง: <span class="text-red-400">${sTime} น.</span></div>
+                            <div class="text-gray-300 text-base md:text-lg mt-2 bg-gray-700 p-2 rounded truncate">📝 ${log.remark || 'ไม่มีรายละเอียดเพิ่มเติม'}</div>
+                        </div>
+                    </div>`;
+                });
+                mHtml += '</div>';
+
+                tvSlides.push(`
+                    <div class="h-full w-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-gray-900 to-red-900 animate-fade-in text-white">
+                        <h1 class="text-5xl font-black mb-10 text-red-400 flex items-center gap-4">🚨 เครื่องจักรที่กำลังมีปัญหา (รอซ่อม/กำลังซ่อม)</h1>
+                        ${mHtml}
+                    </div>
+                `);
+            }
+
+            // สไลด์ 2: งานซ่อมที่เสร็จแล้ววันนี้ พร้อมรูปภาพใบที่สอง
+            if (completedMaint.length > 0) {
+                let mHtml = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-6xl">';
+                completedMaint.slice(0, 4).forEach(log => {
+                    let sTime = formatTimeStr(log.startTime);
+                    let eTime = formatTimeStr(log.endTime);
+                    let imgHtml = '<div class="text-6xl flex-none w-24 text-center">✅</div>';
+                    if (log.imageUrl) {
+                        let urls = log.imageUrl.split('|');
+                        let targetImg = urls.length > 1 ? urls[1] : urls[0]; // ใช้รูปตอนปิดจ๊อบ ถ้ามี
+                        let thumb = getThumbUrl(targetImg);
+                        if (thumb) {
+                            imgHtml = `<img src="${thumb}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" class="w-24 h-24 md:w-32 md:h-32 object-cover rounded-xl shadow-md border-2 border-green-500/50 flex-none bg-gray-900"><div class="text-6xl hidden flex-none w-24 text-center">✅</div>`;
+                        }
+                    }
+
+                    mHtml += `
+                    <div class="bg-gray-800 p-6 rounded-xl border-l-8 border-green-500 shadow-lg flex items-center gap-6">
+                        ${imgHtml}
+                        <div class="flex-1 overflow-hidden">
+                            <div class="text-2xl md:text-3xl font-black text-white mb-2 truncate">${log.machine} <span class="bg-green-600 text-white text-sm px-3 py-1 rounded-full ml-2 align-middle">${log.issueType}</span></div>
+                            <div class="text-gray-400 text-lg md:text-xl font-medium">⏱️ ${sTime} - ${eTime} น.</div>
+                            <div class="text-gray-300 text-base md:text-lg mt-2 bg-gray-700 p-2 rounded truncate">📝 ${log.remark || 'แก้ไขเรียบร้อย'}</div>
+                        </div>
+                    </div>`;
+                });
+                mHtml += '</div>';
+
+                tvSlides.push(`
+                    <div class="h-full w-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-gray-900 to-green-900 animate-fade-in text-white">
+                        <h1 class="text-5xl font-black mb-10 text-green-400 flex items-center gap-4">✅ งานซ่อมที่เสร็จสิ้นแล้วในวันนี้</h1>
+                        ${mHtml}
+                    </div>
+                `);
+            }
+
+            // สไลด์ 3: งานเคลม RTV 
+            if (rtvLogs.length > 0) {
+                let rHtml = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-6xl">';
+                rtvLogs.slice(0, 6).forEach(log => {
+                    rHtml += `
+                    <div class="bg-gray-800 p-6 rounded-xl border-l-8 border-teal-500 shadow-lg flex items-center gap-6">
+                        <div class="text-6xl">📦</div>
+                        <div class="flex-1">
+                            <div class="text-3xl font-black text-teal-400 mb-2">${log.product}</div>
+                            <div class="text-white text-2xl mb-2">จำนวน <span class="text-red-400 font-black text-4xl mx-2">${log.qty}</span> ชิ้น</div>
+                            <div class="text-gray-300 text-lg bg-gray-700 p-2 rounded">สาเหตุ: ${log.remark}</div>
+                        </div>
+                    </div>`;
+                });
+                rHtml += '</div>';
+
+                tvSlides.push(`
+                    <div class="h-full w-full flex flex-col items-center justify-center p-8 bg-gradient-to-br from-gray-900 to-teal-900 animate-fade-in text-white">
+                        <h1 class="text-5xl font-black mb-10 text-teal-400 flex items-center gap-4">📦 ข้อมูลลูกค้ารีเทิร์น / เคลม RTV วันนี้</h1>
+                        ${rHtml}
+                    </div>
+                `);
+            }
+
+            // เริ่มรันสไลด์โชว์
+            currentSlideIdx = 0;
+            renderTVSlide();
+            
+            // เปลี่ยนสไลด์ทุกๆ 10 วินาที
+            tvModeInterval = setInterval(() => {
+                currentSlideIdx = (currentSlideIdx + 1) % tvSlides.length;
+                renderTVSlide();
+            }, 10000); 
+        };
+
+        function renderTVSlide() {
+            const contentArea = document.getElementById('tv-content-area');
+            if(contentArea && tvSlides.length > 0) {
+                contentArea.innerHTML = tvSlides[currentSlideIdx];
+            }
+        }
+
+        window.stopTVMode = function() {
+            if (tvModeInterval) clearInterval(tvModeInterval);
+            if (tvClockInterval) clearInterval(tvClockInterval);
+            
+            const modal = document.getElementById('modal-tv-mode');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            
+            // ออกจาก Fullscreen
+            try {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) { /* Safari */
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { /* IE11 */
+                    document.msExitFullscreen();
+                }
+            } catch(e) {}
+        };
+
+    </script>
+</body>
+</html>

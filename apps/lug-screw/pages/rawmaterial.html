@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>รับวัตถุดิบ - H1 Lug&Screw</title>
+  <link rel="icon" href="https://img.icons8.com/color/48/factory.png">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@0.9.8/dist/driver.min.css">
+  <!-- OCR handled by Google Drive API v3 on backend -->
+  <style>
+    #driver-popover-item { font-family: 'Sarabun', sans-serif !important; font-size: 15px; }
+    #driver-popover-item .driver-popover-title { font-size: 16px; font-weight: 700; }
+    #rmTutorialFab {
+      position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 82px); right: 18px; z-index: 9990;
+      width: 44px; height: 44px; border-radius: 50%;
+      background: #1a73e8; color: #fff; border: none;
+      font-size: 22px; box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-3">
+    <!-- Header -->
+    <div class="d-flex justify-between items-center mb-2">
+      <span class="badge badge-info" id="dateBadge"></span>
+    </div>
+
+    <!-- Machine Selection -->
+    <div class="card" id="rmMachineCard">
+      <div class="card-title"><i class="bi bi-gear"></i> เลือกเครื่องจักร</div>
+      <div class="machine-grid" id="machineGrid">
+        <div class="text-center text-muted" style="grid-column:1/-1;padding:20px;">
+          <div class="spinner" style="margin:0 auto;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOM Validation Alert -->
+    <div class="card hidden" id="bomAlertCard" style="border-left:4px solid var(--danger);background:#fff5f5;">
+      <div class="d-flex items-center gap-2" style="color:var(--danger);">
+        <i class="bi bi-exclamation-triangle-fill" style="font-size:20px;"></i>
+        <strong id="bomAlertMsg">วัตถุดิบไม่ตรงกับ BOM</strong>
+      </div>
+      <div class="text-sm mt-1" id="bomAlertDetail"></div>
+    </div>
+
+    <!-- BOM Match Success -->
+    <div class="card hidden" id="bomSuccessCard" style="border-left:4px solid var(--success);background:#f0fdf4;">
+      <div class="d-flex items-center gap-2" style="color:var(--success);">
+        <i class="bi bi-check-circle-fill" style="font-size:20px;"></i>
+        <strong id="bomSuccessMsg">วัตถุดิบตรงกับ BOM</strong>
+      </div>
+      <div class="text-sm mt-1" id="bomSuccessDetail"></div>
+    </div>
+
+    <!-- Camera / OCR Section -->
+    <div class="card" id="rmCameraCard">
+      <div class="card-title"><i class="bi bi-camera"></i> ถ่ายรูปฉลากวัตถุดิบ</div>
+      <!-- Pending photo thumbnails (accumulate before scanning) -->
+      <div id="pendingPhotosGrid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>
+      <div class="photo-upload-area">
+        <label class="photo-add-btn" id="labelCaptureBtn">
+          <i class="bi bi-camera" style="font-size:28px;"></i>
+          <span>ถ่ายรูป</span>
+          <input type="file" accept="image/*" capture="environment" multiple
+                 id="labelInput" style="display:none;" onchange="handleLabelPhoto(this.files)">
+        </label>
+        <label class="photo-add-btn" id="labelFileBtn">
+          <i class="bi bi-folder2-open" style="font-size:28px;"></i>
+          <span>เลือกไฟล์</span>
+          <input type="file" accept="image/*" multiple
+                 id="labelFileInput" style="display:none;" onchange="handleLabelPhoto(this.files)">
+        </label>
+      </div>
+      <button class="btn btn-primary btn-full mt-2 hidden" id="scanAllBtn" onclick="scanAllPending()" style="height:48px;">
+        <i class="bi bi-eye"></i> สแกนทั้งหมด <span id="scanAllCount">0</span> รูป
+      </button>
+      <div class="hidden mt-2" id="ocrProgress">
+        <div class="d-flex items-center gap-2">
+          <div class="spinner" style="width:20px;height:20px;border-width:3px;"></div>
+          <span class="text-sm text-muted" id="ocrStatus">กำลังอ่านข้อมูล...</span>
+        </div>
+        <div class="ocr-progress-bar mt-1">
+          <div class="ocr-progress-fill" id="ocrProgressBar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OCR Result / Manual Input Form -->
+    <div class="card hidden" id="formSection">
+      <div class="card-title"><i class="bi bi-pencil-square"></i> ข้อมูลวัตถุดิบ</div>
+
+      <div class="form-group">
+        <label class="form-label">เลือกจาก BOM ของเครื่อง (ถ้า OCR ไม่เจอ)</label>
+        <select class="form-input" id="bomComponentSelect" onchange="applyBomSelection(this.value)">
+          <option value="">-- เลือก Component Code --</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">รหัสชิ้นส่วน (Part Code)</label>
+        <input type="text" class="form-input" id="partCode" placeholder="เช่น GHC11118A">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">ชื่อชิ้นส่วน (Part Name)</label>
+        <input type="text" class="form-input" id="partName" placeholder="เช่น THERMINAL SCREW 25A">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">สเปค (Specification)</label>
+        <input type="text" class="form-input" id="specification" placeholder="เช่น M5.0x0.8x13.2 YZP(CR+3)+BAKE">
+      </div>
+
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">จำนวน (Quantity)</label>
+          <input type="text" class="form-input" id="quantity" placeholder="เช่น 8000" inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label class="form-label">หน่วย (Unit)</label>
+          <input type="text" class="form-input" id="unit" value="PCS" placeholder="PCS">
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">Lot / PO Number</label>
+          <input type="text" class="form-input" id="lotNumber" placeholder="เลข Lot หรือ PO">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ผู้ตรวจ (Inspector)</label>
+          <input type="text" class="form-input" id="inspector" placeholder="เช่น 160269">
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">ลูกค้า (Customer)</label>
+          <input type="text" class="form-input" id="customer" placeholder="เช่น STL">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Carton / Packing No</label>
+          <input type="text" class="form-input" id="cartonNo" placeholder="เช่น 28 C#2">
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">น้ำหนักสุทธิ NW</label>
+          <input type="text" class="form-input" id="netWeight" placeholder="เช่น 15.19">
+        </div>
+        <div class="form-group">
+          <label class="form-label">น้ำหนักรวม GW</label>
+          <input type="text" class="form-input" id="grossWeight" placeholder="เช่น 15.50">
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">วันที่แพ็ค (Packing Date)</label>
+          <input type="text" class="form-input" id="packingDate" placeholder="เช่น 28-05-2026">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เลขอ้างอิงฉลาก (Ref)</label>
+          <input type="text" class="form-input" id="refNo" placeholder="เช่น TF0342-001">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <input type="text" class="form-input" id="rmRemark" placeholder="ระบุหมายเหตุ (ถ้ามี)">
+      </div>
+    </div>
+
+    <!-- Additional Photos -->
+    <div class="card hidden" id="extraPhotoSection">
+      <div class="card-title"><i class="bi bi-images"></i> รูปเพิ่มเติม <span class="text-muted text-sm">(ไม่บังคับ)</span></div>
+      <div class="photo-upload-area">
+        <div class="photo-previews" id="extraPhotoPreviews"></div>
+        <label class="photo-add-btn" id="extraPhotoAddBtn">
+          <i class="bi bi-camera" style="font-size:28px;"></i>
+          <span>ถ่ายรูป</span>
+          <input type="file" accept="image/*" capture="environment" multiple
+                 id="extraPhotoInput" style="display:none;" onchange="handleExtraPhotos(this.files)">
+        </label>
+        <label class="photo-add-btn" id="extraFileAddBtn">
+          <i class="bi bi-folder2-open" style="font-size:28px;"></i>
+          <span>เลือกไฟล์</span>
+          <input type="file" accept="image/*" multiple
+                 id="extraFileInput" style="display:none;" onchange="handleExtraPhotos(this.files)">
+        </label>
+      </div>
+      <div class="text-muted text-xs mt-1">สูงสุด 10 รูปเพิ่มเติม</div>
+    </div>
+
+    <!-- Submit -->
+    <button class="btn btn-success btn-full mb-3 hidden" id="rmSubmitBtn" onclick="submitRawMaterial()"
+            style="height:56px;font-size:18px;">
+      <i class="bi bi-check-circle"></i> บันทึกรับวัตถุดิบ
+    </button>
+
+    <!-- Manual Entry Button -->
+    <div class="card" id="rmManualCard">
+      <button class="btn btn-outline btn-full" onclick="showManualEntry()">
+        <i class="bi bi-pencil"></i> กรอกข้อมูลเองโดยไม่ถ่ายรูป
+      </button>
+    </div>
+
+    <!-- Batch OCR Review Panel -->
+    <div class="card hidden" id="batchPanel">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span><i class="bi bi-stack"></i> รายการสแกน <span class="badge badge-count" id="batchCount">0</span></span>
+        <button class="btn btn-sm" style="color:var(--danger);border:1px solid var(--danger);background:#fff;" onclick="clearBatch()">
+          <i class="bi bi-x-circle"></i> ล้างทั้งหมด
+        </button>
+      </div>
+      <div id="batchItemsList"></div>
+      <button class="btn btn-success btn-full mt-2" id="batchSubmitAllBtn" onclick="submitAllBatch()" style="height:52px;font-size:17px;">
+        <i class="bi bi-check-circle"></i> บันทึกทั้งหมด
+      </button>
+    </div>
+
+    <!-- Receipts -->
+    <div class="card" id="rmReceiptsCard">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+        <span><i class="bi bi-clock-history"></i> รายการรับ <span class="badge badge-count" id="receiptCount">0</span></span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="date-btn range-btn active" id="rmRangeToday" onclick="setReceiptRange(this,'today')">วันนี้</button>
+        <button class="date-btn range-btn" id="rmRangeYest" onclick="setReceiptRange(this,'yesterday')">เมื่อวาน</button>
+        <button class="date-btn range-btn" id="rmRange7" onclick="setReceiptRange(this,'7days')">7 วัน</button>
+        <input type="date" class="date-input" id="rmDateFrom" style="min-width:130px;" oninput="clearRangeActive()">
+        <span class="text-muted text-sm">ถึง</span>
+        <input type="date" class="date-input" id="rmDateTo" style="min-width:130px;" oninput="clearRangeActive()">
+        <button class="btn btn-outline btn-sm" onclick="loadReceipts()"><i class="bi bi-search"></i></button>
+      </div>
+      <div id="todayReceipts" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+        <p class="text-center text-muted text-sm">ยังไม่มีรายการ</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch Edit Modal -->
+  <div id="batchEditModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9000;overflow-y:auto;padding:16px;" onclick="if(event.target===this)closeBatchEditModal()">
+    <div style="background:#fff;border-radius:16px;max-width:480px;width:100%;margin:auto;padding:20px;" onclick="event.stopPropagation()">
+      <div class="card-title" style="margin-bottom:12px;"><i class="bi bi-pencil-square"></i> แก้ไขข้อมูล</div>
+      <div class="form-group">
+        <label class="form-label">รหัสชิ้นส่วน <span style="color:var(--danger)">*</span></label>
+        <input type="text" class="form-input" id="batchEditPartCode" placeholder="เช่น GHC11118A">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ชื่อชิ้นส่วน</label>
+        <input type="text" class="form-input" id="batchEditPartName">
+      </div>
+      <div class="form-group">
+        <label class="form-label">สเปค</label>
+        <input type="text" class="form-input" id="batchEditSpec">
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">จำนวน <span style="color:var(--danger)">*</span></label>
+          <input type="text" class="form-input" id="batchEditQty" inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label class="form-label">หน่วย</label>
+          <input type="text" class="form-input" id="batchEditUnit">
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">Lot / PO</label>
+          <input type="text" class="form-input" id="batchEditLot">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ผู้ตรวจ</label>
+          <input type="text" class="form-input" id="batchEditInspector">
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">ลูกค้า</label>
+          <input type="text" class="form-input" id="batchEditCustomer">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Carton / Packing No</label>
+          <input type="text" class="form-input" id="batchEditCarton">
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">NW</label>
+          <input type="text" class="form-input" id="batchEditNW">
+        </div>
+        <div class="form-group">
+          <label class="form-label">GW</label>
+          <input type="text" class="form-input" id="batchEditGW">
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label class="form-label">Packing Date</label>
+          <input type="text" class="form-input" id="batchEditPackDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ref</label>
+          <input type="text" class="form-input" id="batchEditRef">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ</label>
+        <input type="text" class="form-input" id="batchEditRemark">
+      </div>
+      <div class="d-flex gap-2 mt-2">
+        <button class="btn btn-outline" style="flex:1;" onclick="closeBatchEditModal()">ยกเลิก</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="saveBatchEdit()"><i class="bi bi-check2"></i> บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <button id="rmTutorialFab" onclick="startRMTutorial()" title="คู่มือการใช้งาน"><i class="bi bi-question-lg"></i></button>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    function loadDriverJs() {
+      if (window.Driver) return Promise.resolve(true);
+      return new Promise(function(resolve) {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/driver.js@0.9.8/dist/driver.min.js';
+        s.onload = function() { resolve(!!window.Driver); };
+        s.onerror = function() { resolve(false); };
+        document.head.appendChild(s);
+      });
+    }
+
+    async function startRMTutorial() {
+      const ok = await loadDriverJs();
+      if (!ok || !window.Driver) { UI.showToast('ไม่สามารถโหลด Tutorial', 'error'); return; }
+      const d = new window.Driver({
+        animate: true,
+        opacity: 0.65,
+        padding: 8,
+        allowClose: true,
+        overlayClickNext: false,
+        doneBtnText: 'เสร็จสิ้น',
+        closeBtnText: 'ปิด',
+        nextBtnText: 'ถัดไป →',
+        prevBtnText: '← ย้อนกลับ',
+        onReset: function() {}
+      });
+      d.defineSteps([
+        {
+          element: '#rmMachineCard',
+          popover: {
+            title: '1️⃣ เลือกเครื่องจักร',
+            description: 'เริ่มต้นด้วยการเลือกเครื่องจักรที่จะรับวัตถุดิบเข้า<br>ระบบจะโหลด BOM (รายการชิ้นส่วนที่อนุญาต) ของเครื่องนั้นๆ เพื่อใช้ตรวจสอบในขั้นตอนถัดไป',
+            position: 'bottom'
+          }
+        },
+        {
+          element: '#rmCameraCard',
+          popover: {
+            title: '2️⃣ ถ่ายรูปฉลากวัตถุดิบ',
+            description: 'กด <b>ถ่ายรูป</b> หรือ <b>เลือกไฟล์</b> เพื่อนำภาพฉลากเข้าระบบ<br>จากนั้นกดปุ่ม <b>"อ่านข้อมูลจากรูป (OCR)"</b> ระบบจะดึงข้อมูลให้อัตโนมัติ เช่น รหัสชิ้นส่วน จำนวน เลข Lot ลูกค้า ฯลฯ',
+            position: 'bottom'
+          }
+        },
+        {
+          element: '#labelCaptureBtn',
+          popover: {
+            title: '📷 ถ่ายรูปจากกล้อง',
+            description: 'กดที่นี่เพื่อเปิดกล้องและถ่ายรูปฉลากโดยตรง<br>รองรับการเลือกหลายรูปพร้อมกัน — แต่ละรูปจะสร้างเป็นรายการแยก (<b>Batch Mode</b>)',
+            position: 'bottom'
+          }
+        },
+        {
+          element: '#labelFileBtn',
+          popover: {
+            title: '🗂️ เลือกรูปจากไฟล์',
+            description: 'กดที่นี่เพื่อเลือกไฟล์ภาพจากคลังรูปในเครื่อง<br>เหมาะสำหรับกรณีที่ถ่ายรูปไว้ก่อนแล้วหรือได้รับไฟล์ภาพมา',
+            position: 'bottom'
+          }
+        },
+        {
+          element: '#rmManualCard',
+          popover: {
+            title: '✏️ กรอกข้อมูลเองโดยไม่ถ่ายรูป',
+            description: 'หากไม่มีรูปฉลาก กดปุ่มนี้เพื่อเปิดฟอร์มกรอกข้อมูลด้วยตนเอง<br>กรอกอย่างน้อย <b>รหัสชิ้นส่วน</b> และ <b>จำนวน</b> จึงจะบันทึกได้<br>ระบบจะตรวจสอบ BOM อัตโนมัติเมื่อกรอก Part Code',
+            position: 'top'
+          }
+        },
+        {
+          element: '#rmReceiptsCard',
+          popover: {
+            title: '📋 ประวัติรายการรับวัตถุดิบ',
+            description: 'ดูรายการวัตถุดิบที่รับเข้าในวันนี้ เมื่อวาน หรือย้อนหลัง 7 วัน<br>กรองช่วงเวลาเองได้จาก Date Picker ด้านบน',
+            position: 'top'
+          }
+        }
+      ]);
+      d.start();
+    }
+  </script>
+  <script>
+    let labelPhotoUrl = null;
+    let extraPhotoUrls = [];
+    const MAX_EXTRA_PHOTOS = 10;
+    let selectedMachine = null;
+    let bomValidationResult = null;
+    let machineBomComponents = [];
+    // Single-photo legacy batch queue
+    let batchQueue = [];
+    let batchTotal = 0;
+    let batchCurrent = 0;
+    // Multi-photo batch OCR mode
+    let batchResults = [];
+    let editingBatchIdx = -1;
+    // Pending photo queue (accumulate before scanning)
+    let pendingPhotos = []; // [{file, previewUrl}]
+    // Auto-save queue
+    let saveQueue = [];
+    let saveWorkerRunning = false;
+    let autoSaveEnabled = false;
+    // Lazy-load receipts state
+    let allReceiptsData = [];
+    let receiptsPage = 0;
+    const RECEIPTS_PAGE_SIZE = 25;
+    let receiptsObserver = null;
+
+    /**
+     * Convert base64 image to grayscale using Canvas
+     */
+    function convertToGrayscale(base64DataUrl) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          for (let i = 0; i < data.length; i += 4) {
+            const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
+          }
+          ctx.putImageData(imageData, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.onerror = function() { reject(new Error('โหลดรูปไม่สำเร็จ')); };
+        img.src = base64DataUrl;
+      });
+    }
+
+    (function init() {
+      if (!Auth.requirePermission('rawmaterial')) return;
+      UI.renderTopNav('รับวัตถุดิบ', 'bi-box-seam');
+      UI.renderNav('rawmaterial');
+      document.getElementById('dateBadge').textContent = UI.formatDate(new Date());
+      const today = UI.getToday();
+      document.getElementById('rmDateFrom').value = today;
+      document.getElementById('rmDateTo').value = today;
+      loadMachines();
+      loadReceipts();
+
+      // Validate BOM when partCode/partName changes (with debounce)
+      let bomTimer = null;
+      const triggerBomValidation = function() {
+        bomValidationResult = null;
+        hideBomAlerts();
+        clearTimeout(bomTimer);
+        const partCode = document.getElementById('partCode').value.trim();
+        const partName = document.getElementById('partName').value.trim();
+        if (partCode && selectedMachine) {
+          bomTimer = setTimeout(() => validateBOM(selectedMachine, partCode, partName), 500);
+        }
+      };
+      document.getElementById('partCode').addEventListener('input', triggerBomValidation);
+      document.getElementById('partName').addEventListener('input', triggerBomValidation);
+    })();
+
+    async function loadMachines() {
+      try {
+        const machines = await API.get('getMachines');
+        let html = '';
+        machines.forEach(m => {
+          const disabled = m.status === 'down' ? ' disabled' : '';
+          const statusLabel = m.status === 'maintenance' ? ' (ซ่อม)' : m.status === 'down' ? ' (หยุด)' : '';
+          html += '<button class="machine-btn status-' + m.status + '" id="rm-machine-' + m.machineId + '"' +
+            disabled + ' onclick="selectRMMachine(\'' + m.machineId + '\')">' +
+            '<div class="machine-name">' + m.machineName + '</div>' +
+            '<div class="machine-id">' + m.machineId + statusLabel + '</div>' +
+            '</button>';
+        });
+        document.getElementById('machineGrid').innerHTML = html;
+      } catch (err) {
+        UI.showToast('โหลดเครื่องจักรล้มเหลว', 'error');
+      }
+    }
+
+    function selectRMMachine(machineId) {
+      document.querySelectorAll('.machine-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('rm-machine-' + machineId).classList.add('active');
+      selectedMachine = machineId;
+      loadMachineBOMComponents(machineId);
+      bomValidationResult = null;
+      hideBomAlerts();
+
+      // Re-validate if partCode already has value
+      const partCode = document.getElementById('partCode').value.trim();
+      const partName = document.getElementById('partName').value.trim();
+      if (partCode) {
+        validateBOM(machineId, partCode, partName);
+      }
+    }
+
+    async function loadMachineBOMComponents(machineId) {
+      machineBomComponents = [];
+      if (!machineId) return;
+      try {
+        const products = await API.get('getMachineProducts', { machineId });
+        const all = [];
+        for (const p of (products || [])) {
+          const bom = await API.get('getProductBOM', { productCode: p.productCode });
+          (bom || []).forEach(c => all.push(c));
+        }
+        machineBomComponents = all;
+        renderBomComponentDropdown();
+      } catch (err) {
+        machineBomComponents = [];
+        renderBomComponentDropdown();
+      }
+    }
+
+    function renderBomComponentDropdown() {
+      const sel = document.getElementById('bomComponentSelect');
+      if (!sel) return;
+
+      let options = '<option value="">-- เลือก Component Code --</option>';
+      const seen = {};
+      (machineBomComponents || []).forEach(c => {
+        const key = (c.componentCode || '') + '||' + (c.componentName || '');
+        if (!c.componentCode || seen[key]) return;
+        seen[key] = true;
+        const label = c.componentCode + ' - ' + (c.componentName || '');
+        options += '<option value="' + key.replace(/"/g, '&quot;') + '">' + label + '</option>';
+      });
+      sel.innerHTML = options;
+    }
+
+    function applyBomSelection(value) {
+      if (!value) return;
+      const parts = value.split('||');
+      const code = parts[0] || '';
+      const name = parts.slice(1).join('||') || '';
+
+      document.getElementById('partCode').value = code;
+      document.getElementById('partName').value = name;
+
+      if (selectedMachine && code) {
+        validateBOM(selectedMachine, code, name);
+      }
+    }
+
+    async function validateBOM(machineId, partCode, partName, applyCanonical) {
+      if (!machineId || !partCode) return;
+      try {
+        const result = await API.get('validateRawMaterial', { machineId, partCode, partName });
+        bomValidationResult = result.valid;
+        hideBomAlerts();
+
+        if (result.valid) {
+          // Canonicalise to the matched BOM code (resolves aliases + BOI/NON) — only from OCR/selection
+          if (applyCanonical && result.matchedComponents && result.matchedComponents.length > 0) {
+            const c0 = result.matchedComponents[0];
+            if (c0.componentCode) document.getElementById('partCode').value = c0.componentCode;
+            if (c0.componentName) document.getElementById('partName').value = c0.componentName;
+          }
+          // Show success
+          const card = document.getElementById('bomSuccessCard');
+          card.classList.remove('hidden');
+          document.getElementById('bomSuccessMsg').textContent = result.warning
+            ? 'รหัสตรง BOM (ชื่อชิ้นส่วนไม่ตรง 100%)'
+            : 'วัตถุดิบตรงกับ BOM';
+          let detail = '';
+          if (result.matchedComponents && result.matchedComponents.length > 0) {
+            result.matchedComponents.forEach(c => {
+              detail += c.componentCode + ' (' + c.componentName + ') → ' + c.productCode + '<br>';
+            });
+          }
+          document.getElementById('bomSuccessDetail').innerHTML = detail;
+          // Enable submit
+          updateSubmitState();
+        } else {
+          // Show error
+          const card = document.getElementById('bomAlertCard');
+          card.classList.remove('hidden');
+          document.getElementById('bomAlertMsg').textContent = result.message || 'วัตถุดิบไม่ตรงกับ BOM';
+          let detail = 'วัตถุดิบที่อนุญาตสำหรับเครื่อง ' + machineId + ':<br>';
+          if (result.allComponents && result.allComponents.length > 0) {
+            result.allComponents.forEach(c => {
+              detail += '• <strong>' + c.componentCode + '</strong> - ' + c.componentName + '<br>';
+            });
+          } else {
+            detail += '(ไม่พบ BOM)';
+          }
+          document.getElementById('bomAlertDetail').innerHTML = detail;
+          // Disable submit
+          updateSubmitState();
+        }
+      } catch (err) {
+        // On error, allow submission (don't block)
+        bomValidationResult = null;
+      }
+    }
+
+    function hideBomAlerts() {
+      document.getElementById('bomAlertCard').classList.add('hidden');
+      document.getElementById('bomSuccessCard').classList.add('hidden');
+    }
+
+    function updateSubmitState() {
+      const btn = document.getElementById('rmSubmitBtn');
+      if (!btn.classList.contains('hidden')) {
+        if (bomValidationResult === false) {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+        } else {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+        }
+      }
+    }
+
+    async function handleLabelPhoto(files) {
+      if (!files || files.length === 0) return;
+      // Snapshot to Array immediately (avoids iOS FileList invalidation after input clear)
+      const fileArr = Array.from(files);
+      document.getElementById('labelInput').value = '';
+      const lfi = document.getElementById('labelFileInput');
+      if (lfi) lfi.value = '';
+      // Accumulate into pending queue (works for both camera 1-at-a-time and gallery multi-select)
+      for (const f of fileArr) {
+        pendingPhotos.push({ file: f, previewUrl: URL.createObjectURL(f) });
+      }
+      renderPendingPhotos();
+    }
+
+    function renderPendingPhotos() {
+      const grid = document.getElementById('pendingPhotosGrid');
+      const btn = document.getElementById('scanAllBtn');
+      const countEl = document.getElementById('scanAllCount');
+      if (pendingPhotos.length === 0) {
+        grid.innerHTML = '';
+        btn.classList.add('hidden');
+        return;
+      }
+      grid.innerHTML = pendingPhotos.map((p, idx) =>
+        '<div style="position:relative;width:72px;height:72px;">' +
+        '<img src="' + p.previewUrl + '" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:2px solid #e0e0e0;">' +
+        '<button onclick="removePendingPhoto(' + idx + ')" style="position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:15px;cursor:pointer;line-height:22px;text-align:center;padding:0;">×</button>' +
+        '</div>'
+      ).join('');
+      countEl.textContent = pendingPhotos.length;
+      btn.classList.remove('hidden');
+    }
+
+    function removePendingPhoto(idx) {
+      URL.revokeObjectURL(pendingPhotos[idx].previewUrl);
+      pendingPhotos.splice(idx, 1);
+      renderPendingPhotos();
+    }
+
+    async function scanAllPending() {
+      if (pendingPhotos.length === 0) return;
+      const files = pendingPhotos.map(p => p.file);
+      pendingPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
+      pendingPhotos = [];
+      renderPendingPhotos();
+      await processBatchFiles(files);
+    }
+
+    async function processLabelFile(file) {
+      try {
+        const grayscale = await API.prepareOcrImage(file);
+        labelPhotoUrl = grayscale;
+        document.getElementById('labelPreview').innerHTML =
+          '<div class="photo-preview-item photo-preview-large">' +
+          '<img src="' + grayscale + '" alt="label">' +
+          '<button class="photo-remove-btn" onclick="removeLabelPhoto()">&times;</button></div>';
+        document.getElementById('ocrBtn').classList.remove('hidden');
+        document.getElementById('formSection').classList.remove('hidden');
+        document.getElementById('extraPhotoSection').classList.remove('hidden');
+        document.getElementById('rmSubmitBtn').classList.remove('hidden');
+        // Auto-run OCR in batch mode so user just reviews and submits
+        if (batchTotal > 1) {
+          await runOCR();
+        }
+      } catch (err) {
+        UI.showToast('ไม่สามารถอ่านรูปได้', 'error');
+      }
+    }
+
+    function updateBatchBadge() {
+      const badge = document.getElementById('batchBadge');
+      if (!badge) return;
+      if (batchTotal > 1) {
+        badge.style.display = '';
+        badge.textContent = 'รายการที่ ' + batchCurrent + '/' + batchTotal;
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    function removeLabelPhoto() {
+      labelPhotoUrl = null;
+      document.getElementById('labelPreview').innerHTML = '';
+      document.getElementById('ocrBtn').classList.add('hidden');
+    }
+
+    /* ====== Multi-photo Batch OCR Mode ====== */
+
+    async function processBatchFiles(files) {
+      // Hide single-mode UI, show batch panel
+      ['formSection','extraPhotoSection','rmSubmitBtn','scanAllBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+      document.getElementById('batchPanel').classList.remove('hidden');
+
+      batchResults = files.map((file, i) => ({ id: i, file, photoUrl: null, data: {}, status: 'scanning', saveRetries: 0 }));
+      renderBatchPanel();
+
+      // Process up to 3 images concurrently; when one finishes the next starts immediately
+      const CONCURRENT = 3;
+      let ptr = 0;
+
+      async function ocrWorker() {
+        while (ptr < files.length) {
+          const i = ptr++;
+          try {
+            const grayscale = await API.prepareOcrImage(files[i]);
+            batchResults[i].photoUrl = grayscale;
+            batchResults[i].status = 'ocr';
+            renderBatchPanel();
+
+            const result = await API.postLarge('ocrWithDrive', { data: { image: grayscale } });
+            if (result.success && result.text) {
+              batchResults[i].data = extractOCRData(result.text);
+              batchResults[i].status = 'ready';
+            } else {
+              batchResults[i].data = {};
+              batchResults[i].status = 'error';
+            }
+          } catch (err) {
+            batchResults[i].status = 'error';
+          }
+          renderBatchPanel();
+          // If auto-save was already enabled (user clicked submit), queue new ready items automatically
+          if (autoSaveEnabled && batchResults[i].status === 'ready') enqueueSave(i);
+        }
+      }
+
+      await Promise.all(Array.from({ length: Math.min(CONCURRENT, files.length) }, ocrWorker));
+
+      const readyCount = batchResults.filter(r => r.status === 'ready').length;
+      UI.showToast('สแกนเสร็จ ' + readyCount + '/' + files.length + ' รายการ', readyCount > 0 ? 'success' : 'error');
+    }
+
+    /* ====== Auto-Save Queue ====== */
+
+    function enqueueSave(idx) {
+      if (batchResults[idx] && batchResults[idx].status === 'ready') {
+        saveQueue.push(idx);
+        if (!saveWorkerRunning) runSaveQueue();
+      }
+    }
+
+    async function runSaveQueue() {
+      if (saveWorkerRunning) return;
+      saveWorkerRunning = true;
+      while (saveQueue.length > 0) {
+        const idx = saveQueue.shift();
+        const item = batchResults[idx];
+        if (!item || item.status !== 'ready') continue;
+        await saveBatchItem(idx);
+        renderBatchPanel();
+      }
+      saveWorkerRunning = false;
+      renderBatchPanel();
+      const remaining = batchResults.filter(r => r.status === 'ready').length;
+      if (remaining === 0 && batchResults.some(r => r.status === 'submitted')) {
+        setTimeout(() => { batchResults = []; autoSaveEnabled = false; document.getElementById('batchPanel').classList.add('hidden'); }, 2000);
+      }
+    }
+
+    async function saveBatchItem(i) {
+      if (!selectedMachine) return;
+      const item = batchResults[i];
+      if (!item || item.status !== 'ready') return;
+      const d = item.data;
+      if (!d.partCode || !d.quantity) {
+        UI.showToast('รายการที่ ' + (i + 1) + ': ขาด Part Code หรือจำนวน', 'warning');
+        return;
+      }
+
+      const payload = {
+        machineId: selectedMachine, partCode: d.partCode, partName: d.partName || '',
+        specification: d.specification || '', quantity: d.quantity, unit: d.unit || 'PCS',
+        lotNumber: d.lotNumber || '', inspector: d.inspector || '', customer: d.customer || '',
+        netWeight: d.netWeight || '', grossWeight: d.grossWeight || '', cartonNo: d.cartonNo || '',
+        packingDate: d.packingDate || '', refNo: d.refNo || '', remark: d.remark || ''
+      };
+      if (item.photoUrl) payload.photos = [item.photoUrl];
+
+      try {
+        const res = await API[item.photoUrl ? 'postLarge' : 'post']('submitRawMaterial', { data: payload });
+        if (res.success) {
+          batchResults[i].status = 'submitted';
+          loadReceipts();
+        } else {
+          item.saveRetries = (item.saveRetries || 0) + 1;
+          if (item.saveRetries <= 3) {
+            saveQueue.push(i); // retry
+          } else {
+            UI.showToast('รายการที่ ' + (i + 1) + ': บันทึกล้มเหลว ' + item.saveRetries + ' ครั้ง', 'error');
+          }
+        }
+      } catch (err) {
+        item.saveRetries = (item.saveRetries || 0) + 1;
+        if (item.saveRetries <= 3) {
+          saveQueue.push(i); // retry
+        } else {
+          UI.showToast('รายการที่ ' + (i + 1) + ': บันทึกล้มเหลว', 'error');
+        }
+      }
+    }
+
+    /* ====== End Auto-Save Queue ====== */
+
+    // Levenshtein edit distance (for OCR digit-error correction)
+    function levenshtein(a, b) {
+      a = String(a); b = String(b);
+      const m = a.length, n = b.length;
+      if (!m) return n;
+      if (!n) return m;
+      let prev = Array.from({ length: n + 1 }, (_, j) => j);
+      for (let i = 1; i <= m; i++) {
+        const cur = [i];
+        for (let j = 1; j <= n; j++) {
+          cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        }
+        prev = cur;
+      }
+      return prev[n];
+    }
+
+    // Snap an OCR-read code to the nearest BOM component code (fixes misreads like 11116 -> 11115).
+    // When several BOM codes are equally close, disambiguate by component-name keywords found in the OCR text.
+    // Returns canonical componentCode, or '' if no confident match.
+    function snapCodeToBom(rawCode, ocrText) {
+      if (!machineBomComponents || !machineBomComponents.length) return '';
+      const cand = String(rawCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!cand) return '';
+      const ocrUp = String(ocrText || '').toUpperCase();
+      let best = null;
+      machineBomComponents.forEach(c => {
+        const code = String(c.componentCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (!code) return;
+        const dist = levenshtein(cand, code);
+        if (dist > 1) return; // allow at most one OCR character error
+        let nameScore = 0;
+        String(c.componentName || '').toUpperCase().split(/\s+/).filter(w => w.length >= 4).forEach(w => {
+          if (ocrUp.indexOf(w) !== -1) nameScore++;
+        });
+        if (!best || dist < best.dist || (dist === best.dist && nameScore > best.nameScore)) {
+          best = { code: c.componentCode, dist: dist, nameScore: nameScore };
+        }
+      });
+      return best ? best.code : '';
+    }
+
+    function extractOCRData(text) {
+      const data = { partCode:'', partName:'', specification:'', quantity:'', unit:'PCS',
+        lotNumber:'', inspector:'', customer:'', netWeight:'', grossWeight:'',
+        cartonNo:'', packingDate:'', refNo:'', remark:'' };
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      const textNorm = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+      const codes = [];
+      lines.forEach(line => {
+        const m = line.match(/(?:CODE|Material\s*No|Part\s*No)\.?\s*[:;]\s*([A-Z0-9][A-Z0-9\-]*)/i);
+        if (m) codes.push(m[1].trim());
+      });
+      if (codes.length >= 1) data.partCode = codes.find(c => /[A-Z]/i.test(c) && /\d/.test(c)) || codes[0];
+
+      let bomMatched = false;
+      if (machineBomComponents && machineBomComponents.length > 0) {
+        let hit = null;
+        for (let i = 0; i < machineBomComponents.length; i++) {
+          const comp = machineBomComponents[i];
+          const cn = String(comp.componentCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+          if (cn && textNorm.indexOf(cn) !== -1) { hit = comp; break; }
+        }
+        if (!hit) {
+          const ocrUp = text.toUpperCase();
+          hit = machineBomComponents.find(c => {
+            const words = String(c.componentName || '').toUpperCase().split(/\s+/).filter(w => w.length >= 4);
+            return words.some(w => ocrUp.indexOf(w) !== -1);
+          });
+        }
+        if (hit) {
+          // BOM is authoritative: use canonical component code (fixes spaced codes like "GHC 11115 A")
+          data.partCode = hit.componentCode;
+          data.partName = hit.componentName;
+          bomMatched = true;
+        }
+      }
+
+      if (!bomMatched) {
+        lines.forEach(line => {
+          if (data.partName) return;
+          const m = line.match(/PN\s*[:;]\s*(.+)/i);
+          if (m) {
+            let pn = m[1].trim();
+            const cut = pn.match(/\s+P\s*\*?\s*[-_:]/i);
+            if (cut) pn = pn.substring(0, cut.index).trim();
+            data.partName = pn;
+          }
+        });
+      }
+
+      lines.forEach(line => {
+        const m = line.match(/^P\s*\*?\s*[-:]\s*(.+)/i);
+        if (m && !line.match(/^PN/i) && !line.match(/^PCS/i) && !line.match(/^P(?:art|O)\s*No/i)) {
+          if (!data.specification) data.specification = m[1].trim();
+        }
+        const pnl = line.match(/PN\s*[:;]\s*.+?\s+(P\s*\*?\s*[-:]\s*.+)/i);
+        if (pnl && !data.specification) data.specification = pnl[1].replace(/^P\s*\*?\s*[-:]\s*/, '').trim();
+      });
+
+      lines.forEach(line => {
+        if (data.quantity) return;
+        const m = line.match(/(?:Q'?T'?Y|QUANTITY)\s*(?:\([^)]*\))?\s*[:;]\s*(.+?)(?:PCS|Pcs|pcs|$)/i);
+        if (m) {
+          const multi = m[1].trim().match(/(\d[\d,]*)\s*[xX×]\s*(\d[\d,]*)/);
+          if (multi) {
+            data.quantity = String(parseInt(multi[1].replace(/,/g,'')) * parseInt(multi[2].replace(/,/g,'')));
+          } else {
+            const num = m[1].trim().match(/(\d[\d,.]*)/);
+            if (num) data.quantity = num[1].replace(/,/g,'');
+          }
+        }
+      });
+
+      // Safety net: reconstruct spaced GHC codes from small barcode subtext, e.g. "GHC 11115 A"
+      if (!data.partCode || !/\d/.test(data.partCode)) {
+        const gm = text.toUpperCase().match(/GHC\s*\d{4,6}\s*[A-Z]?/);
+        if (gm) data.partCode = gm[0].replace(/\s+/g, '');
+      }
+      // OCR digit-error correction: snap to nearest BOM code (e.g. misread 11116 -> 11115)
+      const snapped = snapCodeToBom(data.partCode, text);
+      if (snapped) {
+        data.partCode = snapped;
+        const comp = machineBomComponents.find(c => c.componentCode === snapped);
+        if (comp) data.partName = comp.componentName;
+      }
+      // Quantity fallback: capture "<n> PCS" even when on a separate line from the Q'ty label
+      if (!data.quantity) {
+        for (let i = 0; i < lines.length; i++) {
+          const pm = lines[i].match(/(\d[\d,]{1,})\s*PCS\b/i);
+          if (pm) { data.quantity = pm[1].replace(/,/g, ''); break; }
+        }
+      }
+      if (!data.quantity) {
+        const qi = lines.findIndex(l => /Q'?T'?Y|QUANTITY/i.test(l));
+        if (qi !== -1) {
+          for (let j = qi; j < Math.min(lines.length, qi + 3); j++) {
+            const after = lines[j].replace(/^.*(?:Q'?T'?Y|QUANTITY)\s*(?:\([^)]*\))?\s*[:;]?/i, '');
+            const nm = after.match(/(\d[\d,]{2,})/);
+            if (nm) { data.quantity = nm[1].replace(/,/g, ''); break; }
+          }
+        }
+      }
+
+      lines.forEach(line => {
+        const m = line.match(/Lot\s*No\.?\s*[:;]\s*(.+)/i);
+        if (m && !data.lotNumber) data.lotNumber = m[1].trim();
+      });
+      if (!data.lotNumber) lines.forEach(line => {
+        const m = line.match(/PO\s*No\.?\s*[:;]\s*(.+)/i);
+        if (m) data.lotNumber = m[1].trim();
+      });
+
+      lines.forEach(line => {
+        const m1 = line.match(/INSPECTED\s*[:;]\s*(\S+)/i);
+        if (m1 && !data.inspector) data.inspector = m1[1].trim();
+        const m2 = line.match(/Inspector\s*[:;]\s*(.+)/i);
+        if (m2 && !data.inspector) data.inspector = m2[1].trim();
+      });
+
+      lines.forEach(line => {
+        if (/Customer\s*Part/i.test(line)) return;
+        const m = line.match(/Customer\s*[:;]\s*([A-Za-z0-9 .&\-\/]+)/i);
+        if (m && !data.customer) data.customer = m[1].trim();
+      });
+
+      lines.forEach(line => {
+        const m = line.match(/NW\s*\([^)]*\)\s*[:;]\s*([\d.,]+)/i);
+        if (m && !data.netWeight) data.netWeight = m[1].trim();
+      });
+      lines.forEach(line => {
+        const m = line.match(/GW\s*\([^)]*\)\s*[:;]\s*([\d.,]+)/i);
+        if (m && !data.grossWeight) data.grossWeight = m[1].trim();
+      });
+      lines.forEach(line => {
+        let m = line.match(/Carton\s*No\.?\s*[:;]?\s*(.+)/i) || line.match(/Packing\s*No\.?\s*[:;]\s*(.+)/i);
+        if (m && !data.cartonNo) data.cartonNo = m[1].trim();
+      });
+      lines.forEach(line => {
+        const m = line.match(/Packing\s*Date\s*[:;]\s*([0-9]{1,4}[-\/.][0-9]{1,2}[-\/.][0-9]{2,4})/i);
+        if (m && !data.packingDate) data.packingDate = m[1].trim();
+      });
+      lines.forEach(line => {
+        const m = line.match(/\b([A-Z]{2,4}\d{3,}-\d{3,})\b/);
+        if (m && m[1] !== data.partCode && !data.refNo) data.refNo = m[1];
+      });
+
+      return data;
+    }
+
+    function renderBatchPanel() {
+      const list = document.getElementById('batchItemsList');
+      const countEl = document.getElementById('batchCount');
+      const scanning = batchResults.some(r => r.status === 'scanning' || r.status === 'ocr');
+      const readyCount = batchResults.filter(r => r.status === 'ready').length;
+      countEl.textContent = batchResults.length;
+
+      list.innerHTML = batchResults.map((item, idx) => {
+        const isScan = item.status === 'scanning' || item.status === 'ocr';
+        const isSubmitted = item.status === 'submitted';
+        const isError = item.status === 'error';
+
+        const icon = isScan
+          ? '<div class="spinner" style="width:18px;height:18px;border-width:2px;flex-shrink:0;"></div>'
+          : isSubmitted ? '<i class="bi bi-send-check-fill" style="color:var(--primary);font-size:18px;flex-shrink:0;"></i>'
+          : item.status === 'ready' ? '<i class="bi bi-check-circle-fill" style="color:var(--success);font-size:18px;flex-shrink:0;"></i>'
+          : '<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);font-size:18px;flex-shrink:0;"></i>';
+
+        const thumb = item.photoUrl
+          ? '<img src="' + item.photoUrl + '" style="width:52px;height:52px;object-fit:cover;border-radius:6px;flex-shrink:0;">'
+          : '<div style="width:52px;height:52px;background:#f1f3f4;border-radius:6px;flex-shrink:0;"></div>';
+
+        let info = '';
+        if (isScan) {
+          info = '<div class="text-sm text-muted">' + (item.status === 'scanning' ? 'บีบอัดรูป...' : 'กำลัง OCR...') + '</div>';
+        } else {
+          info = '<div style="font-weight:700;font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' +
+            rmEscape(item.data.partCode || '(ไม่พบรหัส)') + '</div>';
+          if (item.data.partName) info += '<div class="text-xs text-muted" style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + rmEscape(item.data.partName) + '</div>';
+          if (item.data.quantity) info += '<div class="text-xs"><b>' + rmEscape(item.data.quantity) + '</b> ' + rmEscape(item.data.unit || 'PCS') + '</div>';
+          if (isError) info += '<div class="text-xs" style="color:var(--danger);">OCR ล้มเหลว — กดแก้ไขกรอกเอง</div>';
+          if (isSubmitted) info += '<div class="text-xs" style="color:var(--primary);">✓ บันทึกแล้ว</div>';
+        }
+
+        const editBtn = !isScan && !isSubmitted
+          ? ' <button class="btn btn-sm btn-outline" style="padding:4px 10px;min-height:auto;font-size:12px;" onclick="openBatchEdit(' + idx + ')"><i class="bi bi-pencil"></i></button>'
+          : '';
+
+        return '<div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid #f1f3f4;">' +
+          thumb + '<div style="flex:1;min-width:0;">' + info + '</div>' +
+          '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">' + icon + editBtn + '</div></div>';
+      }).join('');
+
+      const btn = document.getElementById('batchSubmitAllBtn');
+      if (autoSaveEnabled && saveWorkerRunning) {
+        btn.disabled = true; btn.style.opacity = '0.5';
+        btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px;"></div> กำลังบันทึกอัตโนมัติ...';
+      } else if (scanning) {
+        btn.disabled = true; btn.style.opacity = '0.5';
+        btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px;"></div> กำลังสแกน...';
+      } else if (readyCount > 0) {
+        btn.disabled = false; btn.style.opacity = '1';
+        btn.innerHTML = '<i class="bi bi-send"></i> เข้าคิวบันทึก ' + readyCount + ' รายการ';
+      } else {
+        btn.disabled = true; btn.style.opacity = '0.5';
+        btn.innerHTML = '<i class="bi bi-check-circle"></i> บันทึกทั้งหมด';
+      }
+    }
+
+    function openBatchEdit(idx) {
+      editingBatchIdx = idx;
+      const d = batchResults[idx].data || {};
+      [['batchEditPartCode','partCode'],['batchEditPartName','partName'],['batchEditSpec','specification'],
+       ['batchEditQty','quantity'],['batchEditUnit','unit'],['batchEditLot','lotNumber'],
+       ['batchEditInspector','inspector'],['batchEditCustomer','customer'],['batchEditCarton','cartonNo'],
+       ['batchEditNW','netWeight'],['batchEditGW','grossWeight'],['batchEditPackDate','packingDate'],
+       ['batchEditRef','refNo'],['batchEditRemark','remark']].forEach(([elId, key]) => {
+        const el = document.getElementById(elId);
+        if (el) el.value = d[key] || (key === 'unit' ? 'PCS' : '');
+      });
+      document.getElementById('batchEditModal').style.display = 'block';
+    }
+
+    function closeBatchEditModal() {
+      document.getElementById('batchEditModal').style.display = 'none';
+      editingBatchIdx = -1;
+    }
+
+    function saveBatchEdit() {
+      if (editingBatchIdx < 0) return;
+      batchResults[editingBatchIdx].data = {
+        partCode: document.getElementById('batchEditPartCode').value.trim(),
+        partName: document.getElementById('batchEditPartName').value.trim(),
+        specification: document.getElementById('batchEditSpec').value.trim(),
+        quantity: document.getElementById('batchEditQty').value.trim(),
+        unit: document.getElementById('batchEditUnit').value.trim() || 'PCS',
+        lotNumber: document.getElementById('batchEditLot').value.trim(),
+        inspector: document.getElementById('batchEditInspector').value.trim(),
+        customer: document.getElementById('batchEditCustomer').value.trim(),
+        cartonNo: document.getElementById('batchEditCarton').value.trim(),
+        netWeight: document.getElementById('batchEditNW').value.trim(),
+        grossWeight: document.getElementById('batchEditGW').value.trim(),
+        packingDate: document.getElementById('batchEditPackDate').value.trim(),
+        refNo: document.getElementById('batchEditRef').value.trim(),
+        remark: document.getElementById('batchEditRemark').value.trim()
+      };
+      batchResults[editingBatchIdx].status = 'ready';
+      closeBatchEditModal();
+      renderBatchPanel();
+    }
+
+    async function submitAllBatch() {
+      if (!selectedMachine) { UI.showToast('กรุณาเลือกเครื่องจักรก่อน', 'warning'); return; }
+      // Enable auto-save so future OCR-ready items also save automatically
+      autoSaveEnabled = true;
+      // Enqueue all currently ready items
+      for (let i = 0; i < batchResults.length; i++) {
+        if (batchResults[i].status === 'ready') enqueueSave(i);
+      }
+      UI.showToast('เข้าคิวบันทึกอัตโนมัติแล้ว', 'success');
+    }
+
+    function clearBatch() {
+      if (!confirm('ล้างรายการทั้งหมด ' + batchResults.length + ' รายการ ใช่หรือไม่?')) return;
+      batchResults = [];
+      saveQueue = [];
+      autoSaveEnabled = false;
+      saveWorkerRunning = false;
+      document.getElementById('batchPanel').classList.add('hidden');
+    }
+
+    /* ====== End Batch Mode ====== */
+
+    function showManualEntry() {
+      document.getElementById('formSection').classList.remove('hidden');
+      document.getElementById('extraPhotoSection').classList.remove('hidden');
+      document.getElementById('rmSubmitBtn').classList.remove('hidden');
+      document.getElementById('partCode').focus();
+    }
+
+    async function runOCR() {
+      if (!labelPhotoUrl) {
+        UI.showToast('กรุณาถ่ายรูปฉลากก่อน', 'warning');
+        return;
+      }
+
+      const ocrBtn = document.getElementById('ocrBtn');
+      ocrBtn.disabled = true;
+      document.getElementById('ocrProgress').classList.remove('hidden');
+      document.getElementById('ocrStatus').textContent = 'กำลังส่งรูปไป Google Drive OCR...';
+      document.getElementById('ocrProgressBar').style.width = '50%';
+
+      try {
+        const result = await API.postLarge('ocrWithDrive', { data: { image: labelPhotoUrl } });
+
+        if (result.success && result.text) {
+          document.getElementById('ocrProgressBar').style.width = '100%';
+          parseOCRText(result.text);
+          UI.showToast('อ่านข้อมูลสำเร็จ (Drive OCR) - กรุณาตรวจสอบ', 'success');
+        } else {
+          UI.showToast('OCR ล้มเหลว: ' + (result.message || 'ไม่สามารถอ่านข้อมูลได้'), 'error');
+        }
+      } catch (err) {
+        UI.showToast('OCR ล้มเหลว: ' + err.message, 'error');
+      }
+
+      ocrBtn.disabled = false;
+      document.getElementById('ocrProgress').classList.add('hidden');
+      document.getElementById('ocrProgressBar').style.width = '0%';
+    }
+
+    function parseOCRText(text) {
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      const textNorm = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      let bomMatchedFromOCR = false;
+
+      // Extract explicitly labelled part codes: CODE / Material No / Part No (incl. Customer Part No)
+      const codes = [];
+      lines.forEach(line => {
+        const codeMatch = line.match(/(?:CODE|Material\s*No|Part\s*No)\.?\s*[:;]\s*([A-Z0-9][A-Z0-9\-]*)/i);
+        if (codeMatch) codes.push(codeMatch[1].trim());
+      });
+      let explicitCode = '';
+      if (codes.length >= 1) {
+        explicitCode = codes.find(c => /[A-Z]/i.test(c) && /\d/.test(c)) || codes[0];
+        document.getElementById('partCode').value = explicitCode;
+      }
+
+      // Prefer exact BOM componentCode/componentName from selected machine if detected in OCR text
+      if (machineBomComponents && machineBomComponents.length > 0) {
+        let bomCodeMatch = null;
+        for (let i = 0; i < machineBomComponents.length; i++) {
+          const comp = machineBomComponents[i];
+          const codeNorm = String(comp.componentCode || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+          if (codeNorm && textNorm.indexOf(codeNorm) !== -1) {
+            bomCodeMatch = comp;
+            break;
+          }
+        }
+
+        if (bomCodeMatch) {
+          // BOM is authoritative: use canonical code (fixes spaced codes like "GHC 11115 A")
+          document.getElementById('partCode').value = bomCodeMatch.componentCode;
+          document.getElementById('partName').value = bomCodeMatch.componentName;
+          bomMatchedFromOCR = true;
+        } else {
+          // Fallback: match by BOM component name keywords
+          const ocrUpper = text.toUpperCase();
+          const bomNameMatch = machineBomComponents.find(c => {
+            const name = String(c.componentName || '').toUpperCase();
+            if (!name) return false;
+            const words = name.split(/\s+/).filter(w => w.length >= 4);
+            return words.some(w => ocrUpper.indexOf(w) !== -1);
+          });
+          if (bomNameMatch) {
+            if (!explicitCode && !document.getElementById('partCode').value) {
+              document.getElementById('partCode').value = bomNameMatch.componentCode;
+            }
+            document.getElementById('partName').value = bomNameMatch.componentName;
+            bomMatchedFromOCR = true;
+          }
+        }
+      }
+
+      // Extract PN (Part Name) — stop before spec pattern like "P*-" or "P -"
+      lines.forEach(line => {
+        if (bomMatchedFromOCR) return;
+        const pnMatch = line.match(/PN\s*[:;]\s*(.+)/i);
+        if (pnMatch) {
+          let partName = pnMatch[1].trim();
+          // Cut off at spec boundary: "P*-", "P -", "P*_", or dimension pattern
+          const specCut = partName.match(/\s+P\s*\*?\s*[-_:]/i);
+          if (specCut) {
+            partName = partName.substring(0, specCut.index).trim();
+          }
+          document.getElementById('partName').value = partName;
+        }
+      });
+
+      // Extract specification from "P*-..." line or from PN line after the cut
+      lines.forEach(line => {
+        // Match standalone spec line: "P *- M5.0x0.8x13.2 ..."
+        const specMatch = line.match(/^P\s*\*?\s*[-:]\s*(.+)/i);
+        if (specMatch && !line.match(/^PN/i) && !line.match(/^PCS/i) && !line.match(/^P(?:art|O)\s*No/i)) {
+          document.getElementById('specification').value = specMatch[1].trim();
+          return;
+        }
+        // Also check inside PN line for embedded spec
+        const pnLine = line.match(/PN\s*[:;]\s*.+?\s+(P\s*\*?\s*[-:]\s*.+)/i);
+        if (pnLine) {
+          const embeddedSpec = pnLine[1].replace(/^P\s*\*?\s*[-:]\s*/, '').trim();
+          if (embeddedSpec && !document.getElementById('specification').value) {
+            document.getElementById('specification').value = embeddedSpec;
+          }
+        }
+      });
+
+      // Extract Q'TY / Quantity (handles "Q'TY:", "Q'ty(PCS):", "Q'ty:" formats)
+      lines.forEach(line => {
+        const qtyMatch = line.match(/(?:Q'?T'?Y|QUANTITY)\s*(?:\([^)]*\))?\s*[:;]\s*(.+?)(?:PCS|Pcs|pcs|$)/i);
+        if (qtyMatch) {
+          let qtyStr = qtyMatch[1].trim();
+          // Handle "4 x 2,000" format
+          const multiMatch = qtyStr.match(/(\d[\d,]*)\s*[xX×]\s*(\d[\d,]*)/);
+          if (multiMatch) {
+            const a = parseInt(multiMatch[1].replace(/,/g, ''));
+            const b = parseInt(multiMatch[2].replace(/,/g, ''));
+            document.getElementById('quantity').value = a * b;
+          } else {
+            const numMatch = qtyStr.match(/(\d[\d,.]*)/);
+            if (numMatch) document.getElementById('quantity').value = numMatch[1].replace(/,/g, '');
+          }
+        }
+      });
+
+      // Safety net: reconstruct spaced GHC codes from small barcode subtext, e.g. "GHC 11115 A"
+      const pcEl = document.getElementById('partCode');
+      if (!pcEl.value || !/\d/.test(pcEl.value)) {
+        const gm = text.toUpperCase().match(/GHC\s*\d{4,6}\s*[A-Z]?/);
+        if (gm) pcEl.value = gm[0].replace(/\s+/g, '');
+      }
+      // OCR digit-error correction: snap to nearest BOM code (e.g. misread 11116 -> 11115)
+      const snappedCode = snapCodeToBom(pcEl.value, text);
+      if (snappedCode) {
+        pcEl.value = snappedCode;
+        const comp = machineBomComponents.find(c => c.componentCode === snappedCode);
+        if (comp) document.getElementById('partName').value = comp.componentName;
+      }
+      // Quantity fallback: "<n> PCS" on a separate line, or a number near the Q'ty label
+      const qEl = document.getElementById('quantity');
+      if (!qEl.value) {
+        for (let i = 0; i < lines.length; i++) {
+          const pm = lines[i].match(/(\d[\d,]{1,})\s*PCS\b/i);
+          if (pm) { qEl.value = pm[1].replace(/,/g, ''); break; }
+        }
+      }
+      if (!qEl.value) {
+        const qi = lines.findIndex(l => /Q'?T'?Y|QUANTITY/i.test(l));
+        if (qi !== -1) {
+          for (let j = qi; j < Math.min(lines.length, qi + 3); j++) {
+            const after = lines[j].replace(/^.*(?:Q'?T'?Y|QUANTITY)\s*(?:\([^)]*\))?\s*[:;]?/i, '');
+            const nm = after.match(/(\d[\d,]{2,})/);
+            if (nm) { qEl.value = nm[1].replace(/,/g, ''); break; }
+          }
+        }
+      }
+
+      // Extract Lot No. / PO No. → lotNumber
+      if (!document.getElementById('lotNumber').value) {
+        lines.forEach(line => {
+          const lotMatch = line.match(/Lot\s*No\.?\s*[:;]\s*(.+)/i);
+          if (lotMatch) {
+            document.getElementById('lotNumber').value = lotMatch[1].trim();
+          }
+        });
+      }
+      if (!document.getElementById('lotNumber').value) {
+        lines.forEach(line => {
+          const poMatch = line.match(/PO\s*No\.?\s*[:;]\s*(.+)/i);
+          if (poMatch) {
+            document.getElementById('lotNumber').value = poMatch[1].trim();
+          }
+        });
+      }
+
+      // Extract INSPECTED or Inspector
+      lines.forEach(line => {
+        const inspMatch = line.match(/INSPECTED\s*[:;]\s*(\S+)/i);
+        if (inspMatch) document.getElementById('inspector').value = inspMatch[1].trim();
+        const inspMatch2 = line.match(/Inspector\s*[:;]\s*(.+)/i);
+        if (inspMatch2 && !document.getElementById('inspector').value) {
+          document.getElementById('inspector').value = inspMatch2[1].trim();
+        }
+      });
+
+      // Extra shipping-mark fields: Customer, NW, GW, Carton/Packing No, Packing Date
+      const setIfEmpty = (id, v) => {
+        const el = document.getElementById(id);
+        if (el && !el.value.trim() && v) el.value = v;
+      };
+      lines.forEach(line => {
+        if (/Customer\s*Part/i.test(line)) return; // skip "Customer Part No"
+        const m = line.match(/Customer\s*[:;]\s*([A-Za-z0-9 .&\-\/]+)/i);
+        if (m) setIfEmpty('customer', m[1].trim());
+      });
+      lines.forEach(line => {
+        const m = line.match(/NW\s*\([^)]*\)\s*[:;]\s*([\d.,]+)/i);
+        if (m) setIfEmpty('netWeight', m[1].trim());
+      });
+      lines.forEach(line => {
+        const m = line.match(/GW\s*\([^)]*\)\s*[:;]\s*([\d.,]+)/i);
+        if (m) setIfEmpty('grossWeight', m[1].trim());
+      });
+      lines.forEach(line => {
+        let m = line.match(/Carton\s*No\.?\s*[:;]?\s*(.+)/i);
+        if (!m) m = line.match(/Packing\s*No\.?\s*[:;]\s*(.+)/i);
+        if (m) setIfEmpty('cartonNo', m[1].trim());
+      });
+      lines.forEach(line => {
+        const m = line.match(/Packing\s*Date\s*[:;]\s*([0-9]{1,4}[-\/.][0-9]{1,2}[-\/.][0-9]{2,4})/i);
+        if (m) setIfEmpty('packingDate', m[1].trim());
+      });
+      // Small reference/format code (e.g. bottom-right "TF0342-001"), unlabelled
+      lines.forEach(line => {
+        const m = line.match(/\b([A-Z]{2,4}\d{3,}-\d{3,})\b/);
+        if (m && m[1] !== document.getElementById('partCode').value.trim()) setIfEmpty('refNo', m[1]);
+      });
+
+      // Finalise: canonicalise part code/name (BOI vs NON) and run BOM validation
+      const finalCode = document.getElementById('partCode').value.trim();
+      if (selectedMachine && finalCode) {
+        validateBOM(selectedMachine, finalCode, document.getElementById('partName').value.trim(), true);
+      }
+    }
+
+    async function handleExtraPhotos(files) {
+      for (let i = 0; i < files.length; i++) {
+        if (extraPhotoUrls.length >= MAX_EXTRA_PHOTOS) {
+          UI.showToast('แนบรูปเพิ่มเติมได้สูงสุด ' + MAX_EXTRA_PHOTOS + ' รูป', 'warning');
+          break;
+        }
+        try {
+          const compressed = await API.compressImage(files[i], 800, 800, 0.6);
+          const grayscale = await convertToGrayscale(compressed);
+          extraPhotoUrls.push(grayscale);
+        } catch (err) {
+          UI.showToast('ไม่สามารถอ่านรูปได้', 'error');
+        }
+      }
+      renderExtraPhotoPreviews();
+      document.getElementById('extraPhotoInput').value = '';
+      if (document.getElementById('extraFileInput')) document.getElementById('extraFileInput').value = '';
+    }
+
+    function renderExtraPhotoPreviews() {
+      const container = document.getElementById('extraPhotoPreviews');
+      let html = '';
+      extraPhotoUrls.forEach((url, idx) => {
+        html += '<div class="photo-preview-item">' +
+          '<img src="' + url + '" alt="photo">' +
+          '<button class="photo-remove-btn" onclick="removeExtraPhoto(' + idx + ')">&times;</button></div>';
+      });
+      container.innerHTML = html;
+      const hideBtn = extraPhotoUrls.length >= MAX_EXTRA_PHOTOS ? 'none' : '';
+      const extraPhotoAddBtn = document.getElementById('extraPhotoAddBtn');
+      const extraFileAddBtn = document.getElementById('extraFileAddBtn');
+      if (extraPhotoAddBtn) extraPhotoAddBtn.style.display = hideBtn;
+      if (extraFileAddBtn) extraFileAddBtn.style.display = hideBtn;
+    }
+
+    function removeExtraPhoto(idx) {
+      extraPhotoUrls.splice(idx, 1);
+      renderExtraPhotoPreviews();
+    }
+
+    async function submitRawMaterial() {
+      const partCodeEl = document.getElementById('partCode');
+      const partNameEl = document.getElementById('partName');
+      const quantityEl = document.getElementById('quantity');
+      const unitEl = document.getElementById('unit');
+      const specificationEl = document.getElementById('specification');
+      const lotNumberEl = document.getElementById('lotNumber');
+      const inspectorEl = document.getElementById('inspector');
+      const remarkEl = document.getElementById('rmRemark');
+
+      if (!partCodeEl || !quantityEl) {
+        UI.showToast('ฟอร์มรับวัตถุดิบไม่สมบูรณ์ กรุณารีเฟรชหน้า', 'error');
+        return;
+      }
+
+      const partCode = partCodeEl.value.trim();
+      const partName = partNameEl ? partNameEl.value.trim() : '';
+      const quantity = quantityEl.value.trim();
+
+      if (!selectedMachine) { UI.showToast('กรุณาเลือกเครื่องจักร', 'warning'); return; }
+      if (!partCode) { UI.showToast('กรุณากรอกรหัสชิ้นส่วน (Part Code)', 'warning'); return; }
+      if (!quantity) { UI.showToast('กรุณากรอกจำนวน', 'warning'); return; }
+
+      // Check BOM validation
+      if (bomValidationResult === false) {
+        UI.showToast('วัตถุดิบไม่ตรงกับ BOM ของเครื่อง ' + selectedMachine + ' ไม่สามารถบันทึกได้', 'error');
+        return;
+      }
+
+      // If not yet validated, validate now
+      if (bomValidationResult === null && selectedMachine) {
+        await validateBOM(selectedMachine, partCode, partName);
+        if (bomValidationResult === false) {
+          UI.showToast('วัตถุดิบไม่ตรงกับ BOM ของเครื่อง ' + selectedMachine + ' ไม่สามารถบันทึกได้', 'error');
+          return;
+        }
+      }
+
+
+      const fieldVal = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value.trim() : '';
+      };
+
+      const data = {
+        machineId: selectedMachine,
+        partCode: partCode,
+        partName: partName,
+        specification: specificationEl ? specificationEl.value.trim() : '',
+        quantity: quantity,
+        unit: (unitEl ? unitEl.value.trim() : '') || 'PCS',
+        lotNumber: lotNumberEl ? lotNumberEl.value.trim() : '',
+        inspector: inspectorEl ? inspectorEl.value.trim() : '',
+        customer: fieldVal('customer'),
+        netWeight: fieldVal('netWeight'),
+        grossWeight: fieldVal('grossWeight'),
+        cartonNo: fieldVal('cartonNo'),
+        packingDate: fieldVal('packingDate'),
+        refNo: fieldVal('refNo'),
+        remark: remarkEl ? remarkEl.value.trim() : ''
+      };
+
+      // Collect all photos
+      const allPhotos = [];
+      if (labelPhotoUrl) allPhotos.push(labelPhotoUrl);
+      allPhotos.push(...extraPhotoUrls);
+      if (allPhotos.length > 0) data.photos = allPhotos;
+
+      const btn = document.getElementById('rmSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:3px;"></div> กำลังบันทึก...';
+
+      try {
+        const postFn = allPhotos.length > 0 ? 'postLarge' : 'post';
+        const result = await API[postFn]('submitRawMaterial', { data });
+        if (result.success) {
+          UI.showToast(result.message, 'success');
+          loadReceipts();
+          const nextFile = batchQueue.length > 0 ? batchQueue.shift() : null;
+          resetRMForm();
+          if (nextFile) {
+            batchCurrent++;
+            updateBatchBadge();
+            await processLabelFile(nextFile);
+          }
+        } else {
+          UI.showToast(result.message, 'error');
+        }
+      } catch (err) {
+        UI.showToast('บันทึกล้มเหลว', 'error');
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle"></i> บันทึกรับวัตถุดิบ';
+    }
+
+    function resetRMForm() {
+      labelPhotoUrl = null;
+      extraPhotoUrls = [];
+      bomValidationResult = null;
+      // Clear pending photo queue
+      pendingPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
+      pendingPhotos = [];
+      renderPendingPhotos();
+      document.getElementById('extraPhotoPreviews').innerHTML = '';
+      document.getElementById('extraPhotoAddBtn').style.display = '';
+      const efi = document.getElementById('extraFileAddBtn');
+      if (efi) efi.style.display = '';
+      ['partCode','partName','specification','quantity','lotNumber','inspector','customer','cartonNo','netWeight','grossWeight','packingDate','refNo','rmRemark']
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+      const bomSel = document.getElementById('bomComponentSelect');
+      if (bomSel) bomSel.value = '';
+      const unitEl = document.getElementById('unit');
+      if (unitEl) unitEl.value = 'PCS';
+      ['scanAllBtn','formSection','extraPhotoSection','rmSubmitBtn'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.classList.add('hidden');
+      });
+      hideBomAlerts();
+      // Clear batch state only when queue is exhausted
+      if (batchQueue.length === 0) {
+        batchTotal = 0;
+        batchCurrent = 0;
+        updateBatchBadge();
+      }
+      // Don't reset machine selection so user can continue scanning for same machine
+    }
+
+    function rmEscape(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function setReceiptRange(btn, mode) {
+      document.querySelectorAll('#rmRangeToday,#rmRangeYest,#rmRange7').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const today = UI.getToday();
+      if (mode === 'today') {
+        document.getElementById('rmDateFrom').value = today;
+        document.getElementById('rmDateTo').value = today;
+      } else if (mode === 'yesterday') {
+        const d = new Date(today + 'T00:00:00'); d.setDate(d.getDate() - 1);
+        const y = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        document.getElementById('rmDateFrom').value = y;
+        document.getElementById('rmDateTo').value = y;
+      } else if (mode === '7days') {
+        const d = new Date(today + 'T00:00:00'); d.setDate(d.getDate() - 6);
+        const f = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        document.getElementById('rmDateFrom').value = f;
+        document.getElementById('rmDateTo').value = today;
+      }
+      loadReceipts();
+    }
+
+    function clearRangeActive() {
+      document.querySelectorAll('#rmRangeToday,#rmRangeYest,#rmRange7').forEach(b => b.classList.remove('active'));
+    }
+
+    function buildReceiptCardHtml(r, from, to) {
+      const time = r.Timestamp ? r.Timestamp.split(' ')[1] || '' : '';
+      const timeLabel = (from !== to && r.Date) ? r.Date + ' ' + time : time;
+      const machineTag = r.MachineID ? ' <span class="badge badge-info" style="font-size:10px;padding:1px 6px;">' + rmEscape(r.MachineID) + '</span>' : '';
+      const qtyStr = (r.Quantity !== '' && r.Quantity != null) ? (UI.formatNumber(r.Quantity) + ' ' + (r.Unit || 'PCS')) : '';
+      const fields = [
+        ['ชื่อชิ้นส่วน', r.PartName], ['สเปค', r.Specification], ['จำนวน', qtyStr],
+        ['Lot / PO', r.LotNumber], ['ผู้ตรวจ', r.Inspector], ['ลูกค้า', r.Customer],
+        ['Carton/Packing No', r.CartonNo], ['NW', r.NetWeight], ['GW', r.GrossWeight],
+        ['Packing Date', r.PackingDate], ['Ref', r.RefNo], ['Supplier', r.SupplierCode],
+        ['หมายเหตุ', r.Remark], ['ผู้รับ', r.ReceiverName]
+      ];
+      let detailHtml = '';
+      fields.forEach(pair => {
+        const v = (pair[1] == null ? '' : String(pair[1])).trim();
+        if (!v) return;
+        detailHtml += '<div style="display:flex;justify-content:space-between;gap:8px;padding:1px 0;">' +
+          '<span class="text-muted">' + pair[0] + '</span>' +
+          '<span style="text-align:right;font-weight:500;">' + rmEscape(v) + '</span></div>';
+      });
+      const photoCount = r.Photos ? String(r.Photos).split(',').map(s => s.trim()).filter(s => s).length : 0;
+      const photoTag = photoCount ? '<div class="text-muted text-xs mt-1"><i class="bi bi-image"></i> ' + photoCount + ' รูป</div>' : '';
+      return '<div class="entry-card" style="border-left-color:var(--success);">' +
+        '<div class="entry-header"><strong>' + rmEscape(r.PartCode || '') + '</strong>' + machineTag +
+        '<span class="text-muted text-sm">' + rmEscape(timeLabel) + '</span></div>' +
+        '<div class="text-xs mt-1" style="line-height:1.5;">' + detailHtml + '</div>' +
+        photoTag + '</div>';
+    }
+
+    function appendReceiptsPage() {
+      const from = document.getElementById('rmDateFrom').value;
+      const to = document.getElementById('rmDateTo').value;
+      const container = document.getElementById('todayReceipts');
+      const start = receiptsPage * RECEIPTS_PAGE_SIZE;
+      if (start >= allReceiptsData.length) return;
+      const end = Math.min(start + RECEIPTS_PAGE_SIZE, allReceiptsData.length);
+      let html = '';
+      for (let i = start; i < end; i++) html += buildReceiptCardHtml(allReceiptsData[i], from, to);
+      // Remove old sentinel before appending
+      const old = document.getElementById('receiptsSentinel');
+      if (old) old.remove();
+      container.insertAdjacentHTML('beforeend', html);
+      receiptsPage++;
+      // Add sentinel for next page if more remain
+      if (end < allReceiptsData.length) {
+        const sentinel = document.createElement('div');
+        sentinel.id = 'receiptsSentinel';
+        sentinel.style.height = '20px';
+        container.appendChild(sentinel);
+        if (receiptsObserver) receiptsObserver.observe(sentinel);
+      }
+    }
+
+    function setupReceiptsObserver() {
+      if (receiptsObserver) receiptsObserver.disconnect();
+      receiptsObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) appendReceiptsPage();
+      }, { rootMargin: '120px' });
+      const sentinel = document.getElementById('receiptsSentinel');
+      if (sentinel) receiptsObserver.observe(sentinel);
+    }
+
+    async function loadReceipts() {
+      const from = document.getElementById('rmDateFrom').value;
+      const to = document.getElementById('rmDateTo').value;
+      if (!from || !to) return;
+      try {
+        const receipts = await API.get('getRawMaterialHistory', { dateFrom: from, dateTo: to });
+        allReceiptsData = (receipts || []).slice().sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp));
+        receiptsPage = 0;
+        document.getElementById('receiptCount').textContent = allReceiptsData.length;
+        const container = document.getElementById('todayReceipts');
+        container.innerHTML = '';
+        if (allReceiptsData.length === 0) {
+          container.innerHTML = '<p class="text-center text-muted text-sm">ยังไม่มีรายการ</p>';
+          return;
+        }
+        appendReceiptsPage();
+        setupReceiptsObserver();
+      } catch (err) {}
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ต้นทุน P&L</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h3><i class="bi bi-cash-stack"></i> บริหารต้นทุน (โครงสร้าง P&L รายเดือน)</h3>
+      <p class="text-muted text-sm mt-1">
+        กรอกต้นทุนแยกตามเดือน+รุ่นสินค้า → FG ดึงจาก ProductionLog เฉพาะเดือนที่เลือกให้อัตโนมัติ ระบบจะคำนวณ Sale = FG × Unit Price และสรุปแนวโน้ม/โครงสร้างต้นทุนย้อนหลังในแท็บ Dashboard
+      </p>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(this,'entry')"><i class="bi bi-pencil-square"></i> กรอกข้อมูล</button>
+        <button class="tab-btn" onclick="switchTab(this,'dashboard')"><i class="bi bi-bar-chart-line"></i> Dashboard</button>
+        <button class="tab-btn" onclick="switchTab(this,'unitprice')"><i class="bi bi-tag"></i> ราคาต่อหน่วย</button>
+      </div>
+    </div>
+
+    <div class="tab-content active" id="tab-entry">
+      <div class="card">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 12px;">
+          <input type="month" class="form-input" id="entryMonth" style="max-width:180px;" onchange="changeEntryMonth()">
+          <select class="form-input" id="productSel" style="max-width:360px;" onchange="selectProduct()"></select>
+          <button class="btn btn-outline" onclick="loadCost()"><i class="bi bi-arrow-repeat"></i> โหลดใหม่</button>
+          <button class="btn btn-primary" onclick="saveCost()"><i class="bi bi-save"></i> บันทึก</button>
+        </div>
+
+        <div class="text-muted text-sm mb-2" id="costStatus">กำลังโหลดข้อมูลสินค้า...</div>
+
+        <div class="table-wrap" id="costTableWrap" style="display:none;">
+          <table class="data-table" id="plTable">
+            <thead>
+              <tr>
+                <th>รายการ</th>
+                <th style="text-align:right;">Actual</th>
+                <th style="text-align:right;">%</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-dashboard">
+      <div class="card">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 12px;">
+          <input type="month" class="form-input" id="dashMonth" style="max-width:180px;" onchange="loadCostDashboard()">
+          <select class="form-input" id="dashMonthsBack" style="max-width:180px;" onchange="loadCostDashboard()">
+            <option value="3">3 เดือนล่าสุด</option>
+            <option value="6" selected>6 เดือนล่าสุด</option>
+            <option value="12">12 เดือนล่าสุด</option>
+          </select>
+          <button class="btn btn-outline" onclick="loadCostDashboard()"><i class="bi bi-arrow-repeat"></i> โหลดใหม่</button>
+        </div>
+        <div class="text-muted text-sm mb-2" id="dashStatus">กำลังโหลด Dashboard ต้นทุน...</div>
+      </div>
+
+      <div class="kpi-grid" style="margin-bottom:16px;">
+        <div class="kpi-card"><div class="kpi-value text-primary" id="momSale">-</div><div class="kpi-label">Sale เทียบเดือนก่อน</div></div>
+        <div class="kpi-card"><div class="kpi-value text-success" id="momGp">-</div><div class="kpi-label">Gross Profit เทียบเดือนก่อน</div></div>
+        <div class="kpi-card"><div class="kpi-value text-warning" id="momProfit">-</div><div class="kpi-label">Profit เทียบเดือนก่อน</div></div>
+        <div class="kpi-card"><div class="kpi-value" id="momEat">-</div><div class="kpi-label">EAT เทียบเดือนก่อน</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">แนวโน้มรายเดือน (Sale / Gross Profit / Profit / EAT)</div>
+        <canvas id="costTrendChart" height="90"></canvas>
+      </div>
+
+      <div class="card">
+        <div class="card-title">โครงสร้างต้นทุนต่อเดือน</div>
+        <canvas id="costStructureChart" height="90"></canvas>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="productCompareTitle">เปรียบเทียบระหว่างรุ่นสินค้า</div>
+        <canvas id="costProductChart" height="90"></canvas>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-unitprice">
+      <div class="card">
+        <div class="card-title"><i class="bi bi-tag"></i> ตั้งค่าราคาต่อหน่วยของสินค้า</div>
+        <p class="text-muted text-sm mt-1">
+          ราคาต่อหน่วยเป็นค่ากลาง (master) ต่อสินค้าหนึ่งค่า ใช้คำนวณ Sale ในตาราง P&L ทุกเดือนจนกว่าจะมีการแก้ไข
+        </p>
+        <div class="text-muted text-sm mb-2" id="unitPriceStatus">กำลังโหลด...</div>
+        <div class="table-wrap" id="unitPriceTableWrap" style="display:none;">
+          <table class="data-table" id="unitPriceTable">
+            <thead>
+              <tr>
+                <th>รหัสสินค้า</th>
+                <th>ชื่อสินค้า</th>
+                <th style="text-align:right;">ราคาต่อหน่วย</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    let products = [];
+    let current = 0;
+    let entryYearMonth = (function(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); })();
+    let trendChart = null, structureChart = null, productChart = null;
+    let dashboardLoaded = false;
+    let unitPriceLoaded = false;
+
+    (async function init() {
+      if (!Auth.requirePermission('cost')) return;
+      UI.renderNav('cost');
+      UI.renderTopNav('บริหารต้นทุน', 'bi-cash-stack');
+      document.getElementById('entryMonth').value = entryYearMonth;
+      document.getElementById('dashMonth').value = entryYearMonth;
+      await loadCost();
+    })();
+
+    function switchTab(btn, tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+      if (tabId === 'dashboard' && !dashboardLoaded) {
+        dashboardLoaded = true;
+        loadCostDashboard();
+      }
+      if (tabId === 'unitprice' && !unitPriceLoaded) {
+        unitPriceLoaded = true;
+        loadUnitPrices();
+      }
+    }
+
+    function n(v) {
+      const x = Number(String(v == null ? '' : v).replace(/,/g, ''));
+      return isNaN(x) ? 0 : x;
+    }
+
+    function formatAmount(v) {
+      return n(v).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    }
+
+    function formatPercent(v) {
+      return n(v).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    }
+
+    function setCostStatus(message, type) {
+      const el = document.getElementById('costStatus');
+      el.textContent = message || '';
+      el.className = 'text-sm mb-2 ' + (type === 'error' ? 'text-danger' : 'text-muted');
+    }
+
+    function sourceLabelFor(p) {
+      if (p.source === 'Combined') return 'รวม';
+      if (p.source === 'ProductionLog') return 'FG';
+      return 'Products';
+    }
+
+    function loadSel() {
+      const sel = document.getElementById('productSel');
+      sel.innerHTML = products.map((p, i) => {
+        const label = p.source === 'Combined' ? p.productName : (p.productCode + ' - ' + (p.productName || ''));
+        return '<option value="' + i + '">' + escHtml(label) + ' [' + escHtml(sourceLabelFor(p)) + ']</option>';
+      }).join('');
+      sel.value = String(current);
+    }
+
+    function selectProduct() {
+      current = Number(document.getElementById('productSel').value || 0);
+      render();
+    }
+
+    function changeEntryMonth() {
+      entryYearMonth = document.getElementById('entryMonth').value || entryYearMonth;
+      loadCost();
+    }
+
+    async function loadCost() {
+      UI.showLoading('กำลังโหลดต้นทุน...');
+      try {
+        const r = await API.get('getCostPL', { yearMonth: entryYearMonth });
+        if (!r.success) throw new Error(r.message || 'โหลดไม่สำเร็จ');
+        products = r.items || [];
+        current = 0;
+        loadSel();
+        render();
+      } catch (e) {
+        products = [];
+        loadSel();
+        render();
+        setCostStatus('โหลดข้อมูลไม่สำเร็จ: ' + (e.message || 'unknown'), 'error');
+        UI.showToast(e.message || 'โหลดข้อมูลไม่สำเร็จ', 'error');
+      } finally {
+        UI.hideLoading();
+      }
+    }
+
+    function css(group) {
+      if (group === 'calc' || group === 'revenue') return 'font-bold';
+      return '';
+    }
+
+    function render() {
+      const p = products[current];
+      const wrap = document.getElementById('costTableWrap');
+      const tb = document.querySelector('#plTable tbody');
+
+      if (!p) {
+        wrap.style.display = 'none';
+        tb.innerHTML = '';
+        setCostStatus('เดือน ' + entryYearMonth + ' ยังไม่มีรุ่นสินค้าให้เลือก: ระบบไม่พบสินค้า Active ใน Products และยังไม่พบ ProductCode ใน ProductionLog ของเดือนนี้', 'warning');
+        return;
+      }
+
+      wrap.style.display = '';
+      let sourceLabel = 'ดึงรุ่นจาก Sheet Products';
+      if (p.source === 'ProductionLog') sourceLabel = 'ดึงรุ่นจากงาน FG รายชั่วโมง (ProductionLog)';
+      if (p.source === 'Combined') sourceLabel = 'ยอดรวมของทุกรุ่นสินค้า (สำหรับกรอกต้นทุนที่ไม่แยกตามรุ่น เช่น OH FC, SG&A) — ไม่นับซ้ำกับยอดรวมบริษัทในแท็บ Dashboard';
+      const fgText = p.totalFg ? ' | FG ของเดือน ' + entryYearMonth + ': ' + UI.formatNumber(p.totalFg) : '';
+      const nameLabel = p.source === 'Combined' ? p.productName : p.productCode;
+      setCostStatus('กำลังแสดงต้นทุนของ ' + nameLabel + ' เดือน ' + entryYearMonth + ' | ' + sourceLabel + fgText + ' | Unit Price ดึงจากแท็บ "ราคาต่อหน่วย" อัตโนมัติ ระบบคำนวณ Sale = FG × Unit Price และคำนวณ % เทียบยอดขาย', 'info');
+      tb.innerHTML = p.lines.map((ln, idx) => {
+        const amount = n(ln.amount);
+        const input = ln.editable
+          ? '<input class="form-input" type="text" inputmode="decimal" value="' + formatAmount(amount) + '" onchange="editLine(' + idx + ',this.value)">'
+          : '<span class="font-bold">' + formatAmount(amount) + '</span>';
+        return '<tr>' +
+          '<td class="' + css(ln.group) + '">' + ln.label + (ln.editable ? '' : ' <span class="text-muted text-xs">(auto)</span>') + '</td>' +
+          '<td style="text-align:right;">' + input + '</td>' +
+          '<td style="text-align:right;" class="font-bold">' + (ln.percent == null ? '-' : formatPercent(ln.percent)) + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    function recalc(p) {
+      const m = {};
+      p.lines.forEach(l => m[l.code] = n(l.amount));
+      m.FG = n(p.totalFg);
+      const by = (c) => n(m[c]);
+      m.SALE = by('FG') * by('UNITPRICE');
+      m.OHVC = by('UTIL') + by('SUBCONTRACT') + by('ACCESS') + by('REPAIR') + by('OTHERVC');
+      m.COGS = by('RM') + by('SUBCON') + by('DLSUM') + by('OTSUM') + by('OHVC') + by('OHFC');
+      m.GP = by('SALE') - by('COGS');
+      m.SGA = by('SELLVC') + by('ADMINFC');
+      m.PROFIT = by('GP') - by('SGA');
+      m.EBIT = by('PROFIT') + by('OTHERINC') + by('EXBONAD') + by('EXBONOH') + by('MGTBON') + by('EXTRA');
+      m.EAT = by('EBIT') - by('INTEREST') - by('TAX');
+      p.lines.forEach(l => {
+        if (m[l.code] != null) l.amount = m[l.code];
+        const sale = by('SALE');
+        l.percent = (l.code === 'FG' || l.code === 'UNITPRICE') ? null : (sale ? (n(l.amount) / sale) * 100 : 0);
+      });
+    }
+
+    function editLine(i, val) {
+      const p = products[current];
+      if (!p) return;
+      p.lines[i].amount = n(val);
+      recalc(p);
+      render();
+    }
+
+    async function saveCost() {
+      if (!products.length) {
+        UI.showToast('ไม่มีข้อมูลสินค้าให้บันทึก', 'warning');
+        return;
+      }
+      UI.showLoading('กำลังบันทึก...');
+      try {
+        const r = await API.post('saveCostPL', { yearMonth: entryYearMonth, rows: products });
+        if (!r.success) throw new Error(r.message || 'บันทึกไม่สำเร็จ');
+        UI.showToast('บันทึกแล้ว ' + r.updated + ' รายการ', 'success');
+        await loadCost();
+      } catch (e) {
+        UI.showToast(e.message || 'บันทึกไม่สำเร็จ', 'error');
+      } finally {
+        UI.hideLoading();
+      }
+    }
+
+    function setDashStatus(message, type) {
+      const el = document.getElementById('dashStatus');
+      el.textContent = message || '';
+      el.className = 'text-sm mb-2 ' + (type === 'error' ? 'text-danger' : 'text-muted');
+    }
+
+    function momBadge(elId, value) {
+      const el = document.getElementById(elId);
+      if (value == null || isNaN(value)) { el.textContent = '-'; return; }
+      const sign = value > 0 ? '+' : '';
+      el.textContent = sign + value.toFixed(1) + '%';
+      el.className = 'kpi-value ' + (value > 0 ? 'text-success' : (value < 0 ? 'text-danger' : 'text-muted'));
+    }
+
+    async function loadCostDashboard() {
+      const yearMonth = document.getElementById('dashMonth').value || entryYearMonth;
+      const months = document.getElementById('dashMonthsBack').value || '6';
+      setDashStatus('กำลังโหลด Dashboard ต้นทุน...');
+      try {
+        const r = await API.get('getCostDashboard', { yearMonth, months });
+        if (!r.success) throw new Error(r.message || 'โหลดไม่สำเร็จ');
+        renderTrendChart(r.trend);
+        renderStructureChart(r.trend);
+        renderProductChart(r.productBreakdown, r.yearMonth);
+        momBadge('momSale', r.mom ? r.mom.sale : null);
+        momBadge('momGp', r.mom ? r.mom.gp : null);
+        momBadge('momProfit', r.mom ? r.mom.profit : null);
+        momBadge('momEat', r.mom ? r.mom.eat : null);
+        setDashStatus('แสดงข้อมูล ' + r.months.length + ' เดือน (' + r.months[0] + ' ถึง ' + r.yearMonth + ')');
+      } catch (e) {
+        setDashStatus('โหลด Dashboard ไม่สำเร็จ: ' + (e.message || 'unknown'), 'error');
+        UI.showToast(e.message || 'โหลด Dashboard ไม่สำเร็จ', 'error');
+      }
+    }
+
+    function renderTrendChart(trend) {
+      if (!window.Chart) return;
+      const labels = trend.map(t => t.yearMonth);
+      const datasets = [
+        { label: 'Sale', data: trend.map(t => t.sale), borderColor: '#1a73e8', backgroundColor: 'rgba(26,115,232,0.15)', fill: false, tension: 0.25 },
+        { label: 'Gross Profit', data: trend.map(t => t.gp), borderColor: '#34a853', backgroundColor: 'rgba(52,168,83,0.15)', fill: false, tension: 0.25 },
+        { label: 'Profit', data: trend.map(t => t.profit), borderColor: '#fbbc04', backgroundColor: 'rgba(251,188,4,0.15)', fill: false, tension: 0.25 },
+        { label: 'EAT', data: trend.map(t => t.eat), borderColor: '#ea4335', backgroundColor: 'rgba(234,67,53,0.15)', fill: false, tension: 0.25 }
+      ];
+      if (trendChart) { trendChart.data.labels = labels; trendChart.data.datasets = datasets; trendChart.update(); return; }
+      trendChart = new Chart(document.getElementById('costTrendChart'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Sarabun' } } } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function renderStructureChart(trend) {
+      if (!window.Chart) return;
+      const labels = trend.map(t => t.yearMonth);
+      const datasets = [
+        { label: 'RM', data: trend.map(t => t.rm), backgroundColor: '#1a73e8', stack: 's' },
+        { label: 'Sub con', data: trend.map(t => t.subcon), backgroundColor: '#4285f4', stack: 's' },
+        { label: 'ค่าแรง (DL/OT)', data: trend.map(t => t.dlsum + t.otsum), backgroundColor: '#34a853', stack: 's' },
+        { label: 'OH VC', data: trend.map(t => t.ohvc), backgroundColor: '#fbbc04', stack: 's' },
+        { label: 'OH FC', data: trend.map(t => t.ohfc), backgroundColor: '#ff9800', stack: 's' },
+        { label: 'SG&A', data: trend.map(t => t.sga), backgroundColor: '#ea4335', stack: 's' }
+      ];
+      if (structureChart) { structureChart.data.labels = labels; structureChart.data.datasets = datasets; structureChart.update(); return; }
+      structureChart = new Chart(document.getElementById('costStructureChart'), {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Sarabun' } } } }
+        }
+      });
+    }
+
+    function renderProductChart(rows, yearMonth) {
+      if (!window.Chart) return;
+      document.getElementById('productCompareTitle').textContent = 'เปรียบเทียบระหว่างรุ่นสินค้า (เดือน ' + (yearMonth || '') + ')';
+      const labels = (rows || []).map(r => r.productCode);
+      const datasets = [
+        { label: 'Sale', data: (rows || []).map(r => r.sale), backgroundColor: '#1a73e8' },
+        { label: 'Gross Profit', data: (rows || []).map(r => r.gp), backgroundColor: '#34a853' },
+        { label: 'Profit', data: (rows || []).map(r => r.profit), backgroundColor: '#fbbc04' }
+      ];
+      if (productChart) { productChart.data.labels = labels; productChart.data.datasets = datasets; productChart.update(); return; }
+      productChart = new Chart(document.getElementById('costProductChart'), {
+        type: 'bar',
+        data: { labels, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { family: 'Sarabun' } } } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    function setUnitPriceStatus(message, type) {
+      const el = document.getElementById('unitPriceStatus');
+      el.textContent = message || '';
+      el.className = 'text-sm mb-2 ' + (type === 'error' ? 'text-danger' : 'text-muted');
+    }
+
+    async function loadUnitPrices() {
+      setUnitPriceStatus('กำลังโหลด...');
+      try {
+        const list = await API.get('getProducts');
+        const wrap = document.getElementById('unitPriceTableWrap');
+        const tb = document.querySelector('#unitPriceTable tbody');
+        if (!list || !list.length) {
+          wrap.style.display = 'none';
+          setUnitPriceStatus('ยังไม่มีสินค้าใน Sheet Products', 'warning');
+          return;
+        }
+        wrap.style.display = '';
+        tb.innerHTML = list.map(p => {
+          const code = escAttr(p.productCode);
+          return '<tr>' +
+            '<td>' + escHtml(p.productCode) + '</td>' +
+            '<td>' + escHtml(p.productName || '') + '</td>' +
+            '<td style="text-align:right;">' +
+            '<input class="form-input" type="text" inputmode="decimal" id="unitPrice_' + code + '" ' +
+            'value="' + formatAmount(p.unitPrice) + '" style="max-width:140px;text-align:right;">' +
+            '</td>' +
+            '<td><button class="btn btn-primary btn-sm" onclick="saveUnitPrice(\'' + escAttr(escJs(p.productCode)) + '\')">' +
+            '<i class="bi bi-save"></i> บันทึก</button></td>' +
+            '</tr>';
+        }).join('');
+        setUnitPriceStatus('พบสินค้า ' + list.length + ' รายการ');
+      } catch (e) {
+        setUnitPriceStatus('โหลดข้อมูลไม่สำเร็จ: ' + (e.message || 'unknown'), 'error');
+      }
+    }
+
+    async function saveUnitPrice(productCode) {
+      const input = document.getElementById('unitPrice_' + productCode);
+      const unitPrice = n(input.value);
+      UI.showLoading('กำลังบันทึก...');
+      try {
+        const r = await API.post('updateProductUnitPrice', { productCode, unitPrice });
+        if (!r.success) throw new Error(r.message || 'บันทึกไม่สำเร็จ');
+        UI.showToast(r.message || 'บันทึกราคาต่อหน่วยสำเร็จ', 'success');
+        await loadUnitPrices();
+      } catch (e) {
+        UI.showToast(e.message || 'บันทึกไม่สำเร็จ', 'error');
+      } finally {
+        UI.hideLoading();
+      }
+    }
+
+    function escHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function escAttr(s) {
+      return String(s || '').replace(/"/g,'&quot;');
+    }
+    function escJs(s) {
+      return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    }
+  </script>
+</body>
+</html>

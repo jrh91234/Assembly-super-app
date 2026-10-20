@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Assembly Super App</title>
+  <link rel="icon" href="portal/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="portal/portal.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn menu-btn" id="menuBtn" aria-label="เมนู">☰</button>
+    <a class="brand" href="#/">
+      <img src="portal/icon.svg" alt="" width="28" height="28">
+      <span>Assembly Super App</span>
+    </a>
+    <div class="current" id="current"></div>
+    <div class="actions" id="appActions" hidden>
+      <select id="subPage" aria-label="หน้าย่อย" hidden></select>
+      <button class="icon-btn" id="reloadBtn" title="โหลดแอปใหม่">⟳</button>
+      <a class="icon-btn" id="newTabBtn" target="_blank" rel="noopener" title="เปิดในแท็บใหม่">↗</a>
+    </div>
+  </header>
+
+  <nav class="sidebar" id="sidebar">
+    <a class="nav-item" href="#/" data-id="">
+      <span class="nav-icon">🏠</span><span class="nav-label">หน้าหลัก</span>
+    </a>
+    <div class="nav-sep">แอปพลิเคชัน</div>
+    <div id="navApps"></div>
+  </nav>
+  <div class="scrim" id="scrim"></div>
+
+  <main class="content">
+    <section class="home" id="home">
+      <div class="hero">
+        <h1>ระบบงานโรงงานในที่เดียว</h1>
+        <p>เลือกแอปที่ต้องการใช้งาน แอปที่เปิดแล้วจะคงสถานะไว้เมื่อสลับไปมา</p>
+        <input type="search" id="search" placeholder="ค้นหาแอป…" autocomplete="off">
+      </div>
+      <div class="grid" id="grid"></div>
+      <p class="footnote">แต่ละแอปยังเชื่อมต่อ Google Apps Script / Google Sheets ของตัวเองเหมือนเดิม
+        · โค้ดซิงก์จาก repo ต้นทางด้วย <code>scripts/sync-apps.py</code></p>
+    </section>
+    <div class="frames" id="frames"></div>
+  </main>
+
+  <script src="portal/portal.js"></script>
+</body>
+</html>

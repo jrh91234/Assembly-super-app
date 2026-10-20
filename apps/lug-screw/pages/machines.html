@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>สถานะเครื่องจักร - H1 Lug&Screw</title>
+  <link rel="icon" href="https://img.icons8.com/color/48/factory.png">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <style>
+    .current-product-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 700;
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 20px;
+      margin-top: 6px;
+    }
+    .current-product-tag.supplier {
+      background: #f3e8ff;
+      color: #6b21a8;
+      font-weight: 600;
+    }
+    .supplier-select-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .supplier-select-row label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
+    .supplier-select-row select { min-height: 40px; font-size: 14px; padding: 6px 30px 6px 10px; }
+    .current-product-tag.empty {
+      background: var(--gray-light);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .product-select-section {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--gray-light);
+    }
+    .product-select-label {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .product-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 2px solid var(--gray-light);
+      border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-size: 13px;
+    }
+    .product-option:hover { border-color: var(--primary); background: var(--primary-light); }
+    .product-option.selected {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .product-option .radio-dot {
+      width: 18px; height: 18px;
+      border: 2px solid var(--gray);
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .product-option.selected .radio-dot {
+      border-color: var(--primary);
+    }
+    .product-option.selected .radio-dot::after {
+      content: '';
+      width: 10px; height: 10px;
+      background: var(--primary);
+      border-radius: 50%;
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .product-option.disabled {
+      cursor: default;
+      opacity: 0.7;
+      border-style: dashed;
+    }
+    .product-option.disabled:hover { border-color: var(--gray-light); background: transparent; }
+    .current-product-tag.jo {
+      background: var(--gray-light);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-3">
+    <!-- Summary KPIs -->
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
+      <div class="kpi-card">
+        <div class="kpi-value text-success" id="runningCount">-</div>
+        <div class="kpi-label">ทำงาน</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value text-warning" id="maintCount">-</div>
+        <div class="kpi-label">ซ่อมบำรุง</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value text-danger" id="downCount">-</div>
+        <div class="kpi-label">หยุดทำงาน</div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-between items-center mb-2">
+      <span class="font-bold">H1 Lug&Screw Line <span class="text-muted text-sm">8 เครื่อง</span></span>
+      <button class="btn btn-outline btn-sm" onclick="refreshData()">
+        <i class="bi bi-arrow-clockwise"></i> รีเฟรช
+      </button>
+    </div>
+
+    <!-- Machine Grid -->
+    <div class="machine-grid" id="machineStatusGrid">
+      <div class="text-center" style="grid-column:1/-1;padding:40px;">
+        <div class="spinner" style="margin:0 auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Machine Detail Modal -->
+  <div class="modal-overlay" id="machineModal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+      <h3 id="modalTitle" style="font-weight:700;margin:0 0 16px;"></h3>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    let allMachines = [];
+    // Progress of each machine's current Job Order: { jobOrderId: { plannedQty, ... } }.
+    let jobOrderProgress = {};
+
+    // Setting the current product / Job Order writes an absolute value, so replaying
+    // the request is harmless. That lets these saves retry through Apps Script's flaky
+    // redirect hop instead of failing on the first dropped connection.
+    const SETTING_SAVE_OPTIONS = { retries: 2, timeoutMs: 20000 };
+    const JOB_ORDER_LOAD_OPTIONS = { retries: 2, timeoutMs: 15000 };
+
+    (function init() {
+      if (!Auth.requirePermission('machines')) return;
+      UI.renderTopNav('สถานะเครื่องจักร', 'bi-gear');
+      UI.renderNav('machines');
+      loadMachineStatus();
+      setInterval(loadMachineStatus, 60000);
+      // Job Order progress reads the production log, so it refreshes less often than
+      // the machine list; it is also reloaded whenever a Job Order is set here.
+      loadJobOrderProgress();
+      setInterval(loadJobOrderProgress, 5 * 60 * 1000);
+    })();
+
+    function refreshData() {
+      loadMachineStatus();
+      UI.showToast('รีเฟรชแล้ว', 'info');
+    }
+
+    async function loadMachineStatus() {
+      try {
+        const machines = await API.get('getMachines');
+        if (!Array.isArray(machines)) throw new Error('bad response');
+        allMachines = machines;
+        renderMachineGrid(machines);
+      } catch (err) {
+        UI.showToast('โหลดข้อมูลล้มเหลว', 'error');
+      }
+    }
+
+    function renderMachineGrid(machines) {
+      let running = 0, maint = 0, down = 0;
+      machines.forEach(m => {
+        if (m.status === 'running') running++;
+        else if (m.status === 'maintenance') maint++;
+        else down++;
+      });
+
+      document.getElementById('runningCount').textContent = running;
+      document.getElementById('maintCount').textContent = maint;
+      document.getElementById('downCount').textContent = down;
+
+      let html = '';
+      machines.forEach(m => {
+        const statusColor = m.status === 'running' ? 'var(--success)' : m.status === 'maintenance' ? 'var(--warning)' : 'var(--danger)';
+        const statusIcon = m.status === 'running' ? 'bi-check-circle-fill' : m.status === 'maintenance' ? 'bi-wrench' : 'bi-x-circle-fill';
+        const statusText = m.status === 'running' ? 'ทำงาน' : m.status === 'maintenance' ? 'ซ่อมบำรุง' : 'หยุด';
+
+        let productTag;
+        if (m.currentProduct) {
+          productTag = '<div class="current-product-tag"><i class="bi bi-box-fill"></i> ' + m.currentProduct + '</div>';
+        } else {
+          productTag = '<div class="current-product-tag empty"><i class="bi bi-dash-circle"></i> ยังไม่เลือกสินค้า</div>';
+        }
+        if (m.currentLugSupplier || m.currentScrewSupplier) {
+          productTag += '<div><div class="current-product-tag supplier"><i class="bi bi-truck"></i> Lug: ' +
+            escapeHtml(m.currentLugSupplier || '-') + ' · Screw: ' + escapeHtml(m.currentScrewSupplier || '-') + '</div></div>';
+        }
+        if (m.currentProduct && m.currentJobOrder) {
+          productTag += '<div><div class="current-product-tag jo"><i class="bi bi-card-checklist"></i> ' + escapeHtml(m.currentJobOrder) + '</div></div>' +
+            renderCardProgress(m.currentJobOrder);
+        }
+
+        html += '<div class="card" style="border-left:4px solid ' + statusColor + ';cursor:pointer;margin-bottom:0;" ' +
+          'onclick="showDetail(\'' + m.machineId + '\')">' +
+          '<div class="d-flex justify-between items-center">' +
+          '<div><div class="font-bold text-sm">' + m.machineName + '</div>' +
+          '<div class="text-xs text-muted">' + m.machineId + '</div></div>' +
+          '<i class="bi ' + statusIcon + '" style="color:' + statusColor + ';font-size:22px;"></i></div>' +
+          '<div class="mt-1"><span class="badge badge-' + m.status + '">' + statusText + '</span></div>' +
+          productTag +
+          '</div>';
+      });
+      document.getElementById('machineStatusGrid').innerHTML = html;
+    }
+
+    async function loadJobOrderProgress() {
+      try {
+        const res = await API.get('getMachineJobOrderProgress', {}, { retries: 1, timeoutMs: 30000 });
+        if (res && res.success && res.progress) {
+          jobOrderProgress = res.progress;
+          if (allMachines.length) renderMachineGrid(allMachines);
+        }
+      } catch (err) {
+        // Cards simply keep their last progress (or none) until the next refresh.
+      }
+    }
+
+    // Same thresholds as the production form: 'near' at 10% of the plan or less left.
+    function renderCardProgress(jobOrderId) {
+      const p = jobOrderProgress[jobOrderId];
+      if (!p) return '';
+      const planned = Number(p.plannedQty) || 0;
+      const remaining = Number(p.remainingQty) || 0;
+      const over = Number(p.overQty) || 0;
+      const percent = Math.round(Number(p.completionRate) || 0);
+      const done = planned > 0 && remaining <= 0;
+      const near = !done && planned > 0 && remaining <= planned * 0.1;
+      const color = done ? 'var(--danger)' : near ? '#f59e0b' : 'var(--primary)';
+      const badge = done
+        ? '<span class="badge badge-down" style="font-size:10px;">ครบแล้ว' + (over > 0 ? ' +' + UI.formatNumber(over) : '') + '</span>'
+        : near ? '<span class="badge badge-maintenance" style="font-size:10px;">ใกล้ครบ</span>' : '';
+      return '<div class="mt-1" style="font-size:11px;">' +
+        '<div style="height:5px;background:var(--gray-light);border-radius:3px;overflow:hidden;margin:4px 0 3px;">' +
+        '<div style="height:100%;width:' + Math.min(100, percent) + '%;background:' + color + ';"></div></div>' +
+        '<span class="text-muted">' + percent + '% · เหลือ ' + UI.formatNumber(remaining) + '</span> ' + badge + '</div>';
+    }
+
+    // Only the modal owned by the latest click may receive stats.
+    let detailSeq = 0;
+
+    // The modal opens straight away from the machine list already on the page: the
+    // product / Job Order controls need nothing else. Today's stats read the production
+    // log and can be slow, so they fill in afterwards and never block the modal.
+    function showDetail(machineId) {
+      const machine = allMachines.find(m => m.machineId === machineId);
+      if (!machine) return;
+
+      document.getElementById('modalTitle').textContent = machine.machineName;
+      const statusText = machine.status === 'running' ? 'ทำงาน' : machine.status === 'maintenance' ? 'ซ่อมบำรุง' : 'หยุด';
+
+      // Build product selector radio buttons
+      const products = machine.assignedProducts || [];
+      const currentProduct = machine.currentProduct || '';
+      let productOptionsHtml = '';
+
+      // "ไม่ระบุ" option
+      productOptionsHtml += '<div class="product-option' + (!currentProduct ? ' selected' : '') + '" data-product="" ' +
+        'onclick="selectCurrentProduct(this, \'' + machineId + '\', \'\')">' +
+        '<span class="radio-dot"></span>' +
+        '<span class="text-muted" style="font-style:italic;">ไม่ระบุ (ว่าง)</span></div>';
+
+      products.forEach(p => {
+        const sel = currentProduct === p ? ' selected' : '';
+        productOptionsHtml += '<div class="product-option' + sel + '" data-product="' + escapeHtml(p) + '" ' +
+          'onclick="selectCurrentProduct(this, \'' + machineId + '\', \'' + p + '\')">' +
+          '<span class="radio-dot"></span>' +
+          '<span class="font-bold">' + p + '</span></div>';
+      });
+
+      document.getElementById('modalBody').innerHTML =
+        '<span class="badge badge-' + machine.status + '">' + statusText + '</span>' +
+        '<div class="kpi-grid mt-3" style="grid-template-columns:repeat(3,1fr);" id="machineStats"></div>' +
+        '<div class="product-select-section" id="productSelectSection">' +
+        '<div class="product-select-label"><i class="bi bi-box-seam"></i> กำลังผลิตสินค้า</div>' +
+        productOptionsHtml +
+        '</div>' +
+        '<div class="product-select-section" id="supplierSelectSection"></div>' +
+        '<div class="product-select-section" id="jobOrderSelectSection"></div>';
+
+      document.getElementById('machineModal').classList.add('show');
+      loadMachineStats(machineId);
+      renderSupplierSection(machineId, machine.currentLugSupplier || '', machine.currentScrewSupplier || '');
+      renderJobOrderSection(machineId, currentProduct, machine.currentJobOrder || '', '');
+    }
+
+    // Lug / Screw supplier pickers. Choices come from the supplier list managed in
+    // จัดการ > Supplier; loaded once per page and reused for every machine.
+    let supplierOptionsCache = null;
+    let supplierSectionSeq = 0;
+    async function renderSupplierSection(machineId, lugSupplier, screwSupplier) {
+      const section = document.getElementById('supplierSelectSection');
+      if (!section) return;
+      const label = '<div class="product-select-label"><i class="bi bi-truck"></i> Supplier ที่ขึ้นงานอยู่</div>';
+      const seq = ++supplierSectionSeq;
+      let options = supplierOptionsCache;
+      if (!options) {
+        section.innerHTML = label + '<div class="text-xs text-muted">กำลังโหลดรายชื่อ Supplier...</div>';
+        try {
+          options = await API.get('getMachineSupplierOptions', {}, { retries: 2, timeoutMs: 20000 });
+        } catch (err) {
+          options = null;
+        }
+        if (options && options.success) supplierOptionsCache = options;
+      }
+      if (seq !== supplierSectionSeq || !document.getElementById('supplierSelectSection')) return;
+      if (!options || !options.success) {
+        section.innerHTML = label + '<div class="text-xs text-danger">โหลดรายชื่อ Supplier ไม่สำเร็จ ' +
+          '<a href="#" onclick="renderSupplierSection(\'' + machineId + '\', \'' + escapeHtml(lugSupplier) + '\', \'' +
+          escapeHtml(screwSupplier) + '\');return false;">ลองใหม่</a></div>';
+        return;
+      }
+      if (!options.lug.length && !options.screw.length) {
+        section.innerHTML = label + '<div class="text-xs text-muted">ยังไม่มีรายชื่อ Supplier — เพิ่มได้ที่เมนู จัดการ &gt; Supplier</div>';
+        return;
+      }
+      const select = (part, list, current) => {
+        const choices = list.slice();
+        if (current && choices.indexOf(current) === -1) choices.unshift(current);
+        return '<div><label for="supplier_' + part + '">' + (part === 'lug' ? 'Lug' : 'Screw') + '</label>' +
+          '<select class="form-input" id="supplier_' + part + '" onchange="saveMachineSuppliers(\'' + machineId + '\')">' +
+          '<option value="">— ไม่ระบุ —</option>' +
+          choices.map(c => '<option value="' + escapeHtml(c) + '"' + (c === current ? ' selected' : '') + '>' + escapeHtml(c) + '</option>').join('') +
+          '</select></div>';
+      };
+      section.innerHTML = label + '<div class="supplier-select-row">' +
+        select('lug', options.lug, lugSupplier) + select('screw', options.screw, screwSupplier) + '</div>' +
+        '<div class="text-xs text-muted mt-1">บันทึกลงยอดผลิตทุกรายการของเครื่องนี้ เพื่อดู NG แยกตาม Supplier ได้</div>';
+    }
+
+    async function saveMachineSuppliers(machineId) {
+      const lugSupplier = (document.getElementById('supplier_lug') || {}).value || '';
+      const screwSupplier = (document.getElementById('supplier_screw') || {}).value || '';
+      try {
+        const result = await API.post('setMachineSuppliers', { machineId, lugSupplier, screwSupplier }, SETTING_SAVE_OPTIONS);
+        if (result && result.success) {
+          UI.showToast(result.message || 'บันทึก Supplier แล้ว', 'success');
+          const m = allMachines.find(x => x.machineId === machineId);
+          if (m) { m.currentLugSupplier = lugSupplier; m.currentScrewSupplier = screwSupplier; }
+          renderMachineGrid(allMachines);
+        } else {
+          UI.showToast((result && result.message) || 'บันทึกล้มเหลว', 'error');
+          resyncModal(machineId);
+        }
+      } catch (err) {
+        UI.showToast('เน็ตช้า/ไม่ตอบกลับ — กำลังตรวจสอบค่าที่บันทึกจริง', 'warning');
+        resyncModal(machineId);
+      }
+    }
+
+    function renderMachineStats(output, entries, tickets, note) {
+      const el = document.getElementById('machineStats');
+      if (!el) return;
+      el.innerHTML =
+        '<div class="kpi-card"><div class="kpi-value" style="font-size:1.3rem;">' + output + '</div><div class="kpi-label">ยอดวันนี้</div></div>' +
+        '<div class="kpi-card"><div class="kpi-value" style="font-size:1.3rem;">' + entries + '</div><div class="kpi-label">รายการ</div></div>' +
+        '<div class="kpi-card"><div class="kpi-value text-danger" style="font-size:1.3rem;">' + tickets + '</div><div class="kpi-label">แจ้งซ่อม</div></div>' +
+        (note ? '<div class="text-xs text-muted text-center" style="grid-column:1/-1;">' + note + '</div>' : '');
+    }
+
+    async function loadMachineStats(machineId) {
+      const seq = ++detailSeq;
+      const dots = '<span class="text-muted">…</span>';
+      renderMachineStats(dots, dots, dots, '');
+      try {
+        // Reads today's production log; one replay covers Apps Script's flaky
+        // redirect hop without stacking up copies of a genuinely slow query.
+        const data = await API.get('getMachineWithStats', { machineId }, { timeoutMs: 25000, retries: 1 });
+        if (seq !== detailSeq) return;
+        if (!data) throw new Error('not found');
+        renderMachineStats(UI.formatNumber(data.todayOutput), data.todayEntries || 0, data.openTickets || 0, '');
+      } catch (err) {
+        if (seq !== detailSeq) return;
+        renderMachineStats('-', '-', '-',
+          'โหลดยอดวันนี้ไม่สำเร็จ (เน็ต/เซิร์ฟเวอร์ช้า) — ' +
+          '<a href="#" onclick="loadMachineStats(\'' + machineId + '\');return false;">ลองใหม่</a>' +
+          ' · ตั้งค่าสินค้า/Job Order ด้านล่างได้ตามปกติ');
+      }
+    }
+
+    async function selectCurrentProduct(el, machineId, productCode) {
+      // Update radio UI
+      el.closest('.product-select-section').querySelectorAll('.product-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+
+      try {
+        const result = await API.post('setCurrentProduct', { machineId, productCode }, SETTING_SAVE_OPTIONS);
+        if (result.success) {
+          UI.showToast(productCode ? 'เลือกสินค้า: ' + productCode : 'ล้างสินค้าที่กำลังผลิต', 'success');
+          // Update local cache. The backend clears the Job Order when the product
+          // changes, since a Job Order belongs to a single product.
+          const m = allMachines.find(m => m.machineId === machineId);
+          const previousProduct = m ? (m.currentProduct || '') : '';
+          if (m) {
+            m.currentProduct = productCode;
+            if (previousProduct !== productCode) m.currentJobOrder = '';
+          }
+          if (previousProduct !== productCode || !m) {
+            renderJobOrderSection(machineId, productCode, '', '');
+          }
+          // Refresh grid behind modal
+          loadMachineStatus();
+        } else {
+          UI.showToast(result.message || 'บันทึกล้มเหลว', 'error');
+          resyncModal(machineId);
+        }
+      } catch (err) {
+        // The request may still have reached the sheet, so check what was actually
+        // saved instead of leaving the radios showing a guess.
+        UI.showToast('เน็ตช้า/ไม่ตอบกลับ — กำลังตรวจสอบค่าที่บันทึกจริง', 'warning');
+        resyncModal(machineId);
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Guards against an older options request finishing after a newer one
+    // (e.g. the product was switched while Job Orders were still loading).
+    let jobOrderSectionSeq = 0;
+
+    async function renderJobOrderSection(machineId, productCode, currentJobOrder, currentJobOrderStatus) {
+      const section = document.getElementById('jobOrderSelectSection');
+      if (!section) return;
+      const seq = ++jobOrderSectionSeq;
+      const label = '<div class="product-select-label"><i class="bi bi-card-checklist"></i> Job Order ที่กำลังผลิต</div>';
+
+      if (!productCode) {
+        section.innerHTML = label + '<div class="text-xs text-muted">เลือกสินค้าที่กำลังผลิตก่อน จึงจะเลือก Job Order ได้</div>';
+        return;
+      }
+
+      section.innerHTML = label + '<div class="text-center" style="padding:10px;"><div class="spinner" style="margin:0 auto;width:20px;height:20px;border-width:3px;"></div></div>';
+
+      let options = [];
+      try {
+        const res = await API.get('getJobOrderOptions', {
+          filters: JSON.stringify({ machineId, productCode })
+        }, JOB_ORDER_LOAD_OPTIONS);
+        options = Array.isArray(res) ? res : [];
+      } catch (err) {
+        if (seq !== jobOrderSectionSeq) return;
+        section.innerHTML = label + '<div class="text-xs text-danger mb-2">โหลด Job Order ไม่สำเร็จ</div>' +
+          '<button class="btn btn-outline btn-sm" onclick="retryJobOrderSection(\'' + machineId + '\')">' +
+          '<i class="bi bi-arrow-clockwise"></i> ลองใหม่</button>';
+        return;
+      }
+      if (seq !== jobOrderSectionSeq) return;
+
+      const currentIsOpen = !!currentJobOrder && options.some(o => o.jobOrderId === currentJobOrder);
+      let html = label;
+      html += '<div class="product-option' + (!currentIsOpen ? ' selected' : '') + '" ' +
+        'onclick="selectCurrentJobOrder(this, \'' + machineId + '\', \'\')">' +
+        '<span class="radio-dot"></span>' +
+        '<span class="text-muted" style="font-style:italic;">ไม่ระบุ (ว่าง)</span></div>';
+
+      // A Job Order set earlier but since completed/cancelled is shown so the
+      // supervisor can see why it is no longer applied, but it can't be picked.
+      if (currentJobOrder && !currentIsOpen) {
+        const reason = currentJobOrderStatus === 'completed' ? 'ปิดแล้ว'
+          : currentJobOrderStatus === 'cancelled' ? 'ยกเลิกแล้ว'
+          : currentJobOrderStatus === 'missing' ? 'ไม่พบ'
+          : 'ปิดแล้ว/ใช้ไม่ได้';
+        html += '<div class="product-option disabled">' +
+          '<span class="radio-dot"></span>' +
+          '<span class="font-bold" style="text-decoration:line-through;">' + escapeHtml(currentJobOrder) + '</span>' +
+          '<span class="badge badge-down" style="font-size:10px;">' + reason + '</span></div>';
+      }
+
+      // Options arrive in queue order (priority, due date, work date, created).
+      options.forEach(o => {
+        const sel = o.jobOrderId === currentJobOrder ? ' selected' : '';
+        const queueTag = o.queueNo
+          ? '<span class="badge" style="font-size:10px;padding:1px 6px;white-space:nowrap;background:' +
+            (o.queueNo === 1 ? 'var(--primary);color:#fff' : 'var(--gray-light);color:var(--text-muted)') + ';">คิว #' + o.queueNo + '</span>'
+          : '';
+        const urgent = o.priority === 'urgent' ? ' <span class="text-xs" style="color:var(--danger);font-weight:700;">เร่งด่วน</span>'
+          : o.priority === 'high' ? ' <span class="text-xs" style="color:#b06000;font-weight:700;">สูง</span>' : '';
+        html += '<div class="product-option' + sel + '" data-jo="' + escapeHtml(o.jobOrderId) + '" ' +
+          'onclick="selectCurrentJobOrder(this, \'' + machineId + '\', this.dataset.jo)">' +
+          '<span class="radio-dot"></span>' +
+          '<span style="flex:1;"><span class="font-bold">' + escapeHtml(o.jobOrderId) + '</span>' + urgent +
+          '<span class="text-xs text-muted"> · ' + UI.formatNumber(o.plannedQty) +
+          (o.dueDate ? ' · ส่ง ' + escapeHtml(o.dueDate) : (o.workDate ? ' · ' + escapeHtml(o.workDate) : '')) + '</span></span>' +
+          queueTag + '</div>';
+      });
+
+      if (!options.length) {
+        html += '<div class="text-xs text-muted">ยังไม่มี Job Order ที่เปิดอยู่สำหรับเครื่อง/สินค้านี้</div>';
+      }
+      section.innerHTML = html;
+    }
+
+    async function selectCurrentJobOrder(el, machineId, jobOrderId) {
+      el.closest('.product-select-section').querySelectorAll('.product-option:not(.disabled)').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+
+      try {
+        const result = await API.post('setCurrentJobOrder', { machineId, jobOrderId }, SETTING_SAVE_OPTIONS);
+        if (result.success) {
+          UI.showToast(jobOrderId ? 'เลือก Job Order: ' + jobOrderId : 'ล้าง Job Order ที่กำลังผลิต', 'success');
+          const m = allMachines.find(m => m.machineId === machineId);
+          if (m) m.currentJobOrder = jobOrderId;
+          loadJobOrderProgress();
+          // Drop the closed/missing placeholder once a new choice is saved.
+          const stale = el.closest('.product-select-section').querySelector('.product-option.disabled');
+          if (stale) stale.remove();
+          loadMachineStatus();
+        } else {
+          UI.showToast(result.message || 'บันทึกล้มเหลว', 'error');
+          resyncModal(machineId);
+        }
+      } catch (err) {
+        UI.showToast('เน็ตช้า/ไม่ตอบกลับ — กำลังตรวจสอบค่าที่บันทึกจริง', 'warning');
+        resyncModal(machineId);
+      }
+    }
+
+    function retryJobOrderSection(machineId) {
+      const m = allMachines.find(m => m.machineId === machineId);
+      if (m) renderJobOrderSection(machineId, m.currentProduct || '', m.currentJobOrder || '', '');
+    }
+
+    // After a failed or uncertain save, re-read the machine and redraw both radio
+    // groups from what the sheet really holds.
+    async function resyncModal(machineId) {
+      let machines;
+      try {
+        machines = await API.get('getMachines', {}, { retries: 2, timeoutMs: 15000 });
+      } catch (err) {
+        machines = null;
+      }
+      if (Array.isArray(machines)) allMachines = machines;
+      const m = allMachines.find(m => m.machineId === machineId);
+      if (!m || !document.getElementById('machineModal').classList.contains('show')) return;
+
+      const productSection = document.getElementById('productSelectSection');
+      if (productSection) {
+        productSection.querySelectorAll('.product-option').forEach(o => {
+          o.classList.toggle('selected', (o.dataset.product || '') === (m.currentProduct || ''));
+        });
+      }
+      renderSupplierSection(machineId, m.currentLugSupplier || '', m.currentScrewSupplier || '');
+      renderJobOrderSection(machineId, m.currentProduct || '', m.currentJobOrder || '', '');
+      if (Array.isArray(machines)) {
+        renderMachineGrid(machines);
+        UI.showToast('ค่าปัจจุบัน: ' + (m.currentProduct || 'ไม่ระบุสินค้า') +
+          (m.currentJobOrder ? ', ' + m.currentJobOrder : ''), 'info');
+      }
+    }
+
+    function closeModal() {
+      detailSeq++; // late stats must not land in the next machine's modal
+      document.getElementById('machineModal').classList.remove('show');
+    }
+
+    document.getElementById('machineModal').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+  </script>
+</body>
+</html>

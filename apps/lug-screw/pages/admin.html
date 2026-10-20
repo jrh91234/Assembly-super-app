@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>จัดการระบบ - H1 Lug&Screw</title>
+  <link rel="icon" href="https://img.icons8.com/color/48/factory.png">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container mt-3">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(this,'users')"><i class="bi bi-people"></i> พนักงาน</button>
+      <button class="tab-btn" onclick="switchTab(this,'machines')"><i class="bi bi-gear"></i> เครื่องจักร</button>
+      <button class="tab-btn" onclick="switchTab(this,'products')"><i class="bi bi-box"></i> สินค้า</button>
+      <button class="tab-btn" onclick="switchTab(this,'suppliers')"><i class="bi bi-truck"></i> Supplier</button>
+      <button class="tab-btn" onclick="switchTab(this,'actionlog')"><i class="bi bi-journal-text"></i> Action History</button>
+    </div>
+
+    <!-- Users Tab -->
+    <div class="tab-content active" id="tab-users">
+      <div class="card">
+        <div class="card-title"><i class="bi bi-person-plus"></i> เพิ่มพนักงานใหม่</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <input type="text" class="form-input" id="newEmpId" placeholder="รหัสพนักงาน" style="text-transform:uppercase;">
+          <input type="text" class="form-input" id="newEmpName" placeholder="ชื่อ-นามสกุล">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" class="mt-2">
+          <input type="password" class="form-input" id="newEmpPin" placeholder="PIN 4 หลัก" maxlength="4">
+          <select class="form-input" id="newEmpRole" onchange="toggleNewShift()">
+            <option value="viewer">Viewer</option>
+            <option value="operator">Operator</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" class="mt-2" id="newShiftRow">
+          <div id="newShiftField">
+            <select class="form-input" id="newEmpShift">
+              <option value="">-- กะ (ถ้าเป็น Operator) --</option>
+              <option value="A">กะ A</option>
+              <option value="B">กะ B</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="addNewUser()"><i class="bi bi-plus-lg"></i> เพิ่ม</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="bi bi-people"></i> รายชื่อพนักงาน</div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>รหัส</th><th>ชื่อ</th><th>บทบาท</th><th>กะ</th><th>สิทธิ์</th><th>สถานะ</th><th>จัดการ</th></tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="7" class="text-center text-muted">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Machines Tab -->
+    <div class="tab-content" id="tab-machines">
+      <div class="card">
+        <div class="card-title"><i class="bi bi-gear"></i> เครื่องจักร H1 Lug&Screw Line</div>
+        <div id="machinesList"><p class="text-center text-muted">กำลังโหลด...</p></div>
+      </div>
+    </div>
+
+    <!-- Products Tab -->
+    <div class="tab-content" id="tab-products">
+      <div class="card">
+        <div class="card-title"><i class="bi bi-box"></i> ผลิตภัณฑ์และ BOM</div>
+        <div id="productsList"><p class="text-center text-muted">กำลังโหลด...</p></div>
+      </div>
+    </div>
+
+    <!-- Suppliers Tab -->
+    <div class="tab-content" id="tab-suppliers">
+      <div class="card">
+        <div class="card-title"><i class="bi bi-plus-circle"></i> เพิ่ม Supplier</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div style="flex:1;min-width:200px;">
+            <label class="form-label" for="supplierNameInput">ชื่อ Supplier</label>
+            <input type="text" class="form-input" id="supplierNameInput" maxlength="80" placeholder="เช่น ABC Metal"
+                   onkeydown="if(event.key==='Enter')addSupplierAdmin()">
+          </div>
+          <div style="min-width:160px;">
+            <label class="form-label" for="supplierTypeInput">ส่งชิ้นส่วน</label>
+            <select class="form-input" id="supplierTypeInput">
+              <option value="lug">Lug</option>
+              <option value="screw">Screw</option>
+              <option value="both">ทั้ง Lug และ Screw</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" id="supplierAddBtn" onclick="addSupplierAdmin()" style="min-width:90px;"><i class="bi bi-plus-lg"></i> เพิ่ม</button>
+        </div>
+        <div class="text-xs text-muted mt-1">รายชื่อนี้ใช้เป็นตัวเลือก Supplier ของ Lug / Screw ในเมนูเครื่องจักร</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="bi bi-truck"></i> รายชื่อ Supplier</div>
+        <div id="suppliersList"><p class="text-center text-muted">กำลังโหลด...</p></div>
+      </div>
+    </div>
+
+    <!-- Action Log Tab (Admin only) -->
+    <div class="tab-content" id="tab-actionlog">
+      <div class="card">
+        <div class="card-title"><i class="bi bi-journal-text"></i> ประวัติการใช้งาน (Admin)</div>
+        <div id="actionLogList"><p class="text-center text-muted">กำลังโหลด...</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit User Modal -->
+  <div class="modal-overlay" id="editUserModal">
+    <div class="modal-content" style="max-width:520px;">
+      <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      <h3 style="margin:0 0 16px;font-weight:700;font-size:18px;">
+        <i class="bi bi-person-gear"></i> จัดการพนักงาน
+      </h3>
+
+      <!-- User Info -->
+      <div class="edit-section">
+        <div class="edit-section-title">ข้อมูลพนักงาน</div>
+        <div class="form-group">
+          <label class="form-label">รหัสพนักงาน</label>
+          <input type="text" class="form-input" id="editEmpId" disabled style="background:#f1f3f4;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="form-group">
+            <label class="form-label">ชื่อ-นามสกุล</label>
+            <input type="text" class="form-input" id="editEmpName">
+          </div>
+          <div class="form-group">
+            <label class="form-label">บทบาท (Role)</label>
+            <select class="form-input" id="editEmpRole" onchange="onRoleChange()">
+              <option value="viewer">Viewer - ดู Dashboard</option>
+              <option value="operator">Operator - ช่างผลิต</option>
+              <option value="maintenance">Maintenance - ช่างซ่อม</option>
+              <option value="supervisor">Supervisor - หัวหน้า</option>
+              <option value="admin">Admin - ผู้ดูแล</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <div class="form-group">
+            <label class="form-label">PIN ใหม่ <span class="text-muted text-xs">(เว้นว่าง = ไม่เปลี่ยน)</span></label>
+            <input type="password" class="form-input" id="editEmpPin" placeholder="****" maxlength="4">
+          </div>
+          <div class="form-group">
+            <label class="form-label">สถานะ</label>
+            <select class="form-input" id="editEmpActive">
+              <option value="true">ใช้งาน</option>
+              <option value="false">ระงับ</option>
+            </select>
+          </div>
+          <div class="form-group" id="editShiftGroup">
+            <label class="form-label">กะ</label>
+            <select class="form-input" id="editEmpShift">
+              <option value="">ไม่ระบุ</option>
+              <option value="A">กะ A</option>
+              <option value="B">กะ B</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Permissions -->
+      <div class="edit-section">
+        <div class="edit-section-title">
+          สิทธิ์การเข้าถึง
+          <button class="btn btn-outline btn-sm" style="min-height:28px;font-size:11px;padding:2px 10px;margin-left:auto;"
+                  onclick="resetToRoleDefaults()">
+            <i class="bi bi-arrow-counterclockwise"></i> รีเซ็ตตาม Role
+          </button>
+        </div>
+        <div class="perm-grid" id="permGrid">
+          <label class="perm-item">
+            <input type="checkbox" id="perm_inbox">
+            <span class="perm-icon"><i class="bi bi-inbox"></i></span>
+            <span>Inbox</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_production">
+            <span class="perm-icon"><i class="bi bi-clipboard-data"></i></span>
+            <span>กรอกยอดผลิต</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_maintenance">
+            <span class="perm-icon"><i class="bi bi-wrench"></i></span>
+            <span>แจ้งซ่อม</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_rawmaterial">
+            <span class="perm-icon"><i class="bi bi-box-seam"></i></span>
+            <span>รับวัตถุดิบ</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_machines">
+            <span class="perm-icon"><i class="bi bi-gear"></i></span>
+            <span>เครื่องจักร</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_dashboard">
+            <span class="perm-icon"><i class="bi bi-graph-up"></i></span>
+            <span>Dashboard</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_joborders">
+            <span class="perm-icon"><i class="bi bi-card-checklist"></i></span>
+            <span>Job Order</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_cost">
+            <span class="perm-icon"><i class="bi bi-cash-stack"></i></span>
+            <span>บริหารต้นทุน</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_labor">
+            <span class="perm-icon"><i class="bi bi-people"></i></span>
+            <span>ค่าแรงคน</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_sorting">
+            <span class="perm-icon"><i class="bi bi-funnel"></i></span>
+            <span>คัดแยก</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_waste">
+            <span class="perm-icon"><i class="bi bi-trash3"></i></span>
+            <span>ทิ้งขยะ</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_alarm">
+            <span class="perm-icon"><i class="bi bi-bell"></i></span>
+            <span>สถิติ Alarm</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_dailycheck">
+            <span class="perm-icon"><i class="bi bi-clipboard-check"></i></span>
+            <span>Daily Check</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_admin">
+            <span class="perm-icon"><i class="bi bi-person-gear"></i></span>
+            <span>จัดการระบบ</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_ngExport">
+            <span class="perm-icon"><i class="bi bi-file-earmark-spreadsheet"></i></span>
+            <span>ส่งออก NG (QC)</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_sortingClose">
+            <span class="perm-icon"><i class="bi bi-check2-square"></i></span>
+            <span>ปิดงาน Sort (ยอดไม่ครบ)</span>
+          </label>
+          <label class="perm-item">
+            <input type="checkbox" id="perm_ok1Confirm">
+            <span class="perm-icon"><i class="bi bi-patch-check"></i></span>
+            <span>ยืนยัน OK 1st Part (Leader)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn btn-primary btn-full" onclick="saveUserEdit()" id="saveEditBtn">
+          <i class="bi bi-check-lg"></i> บันทึก
+        </button>
+        <button class="btn btn-outline" onclick="closeEditModal()" style="min-width:100px;">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    // Default permissions by role (must match backend)
+    const ROLE_DEFAULTS = {
+      viewer:      { inbox: true, production: false, maintenance: false, rawmaterial: false, machines: false, dashboard: true,  admin: false, joborders: false, cost: false, labor: false, waste: false, sorting: false, alarm: false, dailycheck: false, ngExport: false, sortingClose: false, ok1Confirm: false },
+      operator:    { inbox: true, production: true, maintenance: true, rawmaterial: false, machines: true, dashboard: false, admin: false, joborders: false, cost: false, labor: false, waste: true,  sorting: true,  alarm: true,  dailycheck: true, ngExport: false, sortingClose: false, ok1Confirm: false },
+      maintenance: { inbox: true, production: true, maintenance: true, rawmaterial: true,  machines: true, dashboard: false, admin: false, joborders: false, cost: false, labor: false, waste: true,  sorting: true,  alarm: true,  dailycheck: true, ngExport: false, sortingClose: false, ok1Confirm: false },
+      supervisor:  { inbox: true, production: true, maintenance: true, rawmaterial: true,  machines: true, dashboard: true,  admin: false, joborders: true,  cost: true,  labor: false, waste: true,  sorting: true,  alarm: true,  dailycheck: true, ngExport: true, sortingClose: true,  ok1Confirm: true  },
+      admin:       { inbox: true, production: true, maintenance: true, rawmaterial: true,  machines: true, dashboard: true,  admin: true, joborders: true, cost: true,  labor: false, waste: true,  sorting: true,  alarm: true,  dailycheck: true, ngExport: true, sortingClose: true,  ok1Confirm: true  }
+    };
+
+    const PERM_KEYS = ['inbox', 'production', 'maintenance', 'rawmaterial', 'machines', 'dashboard', 'joborders', 'cost', 'labor', 'waste', 'sorting', 'alarm', 'dailycheck', 'admin', 'ngExport', 'sortingClose', 'ok1Confirm'];
+    let allUsersData = [];
+    let editingUser = null;
+
+    (function init() {
+      if (!Auth.requirePermission('admin')) return;
+      UI.renderTopNav('จัดการระบบ', 'bi-person-gear');
+      UI.renderNav('admin');
+      loadUsers();
+      loadMachinesAdmin();
+      loadProductsAdmin();
+      loadSuppliersAdmin();
+      loadActionHistoryAdmin();
+    })();
+
+    const SUPPLIER_TYPE_LABELS = { lug: 'Lug', screw: 'Screw', both: 'Lug + Screw' };
+    function supplierEsc(v) {
+      return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function loadSuppliersAdmin() {
+      const el = document.getElementById('suppliersList');
+      try {
+        const list = await API.get('getSuppliers');
+        if (!Array.isArray(list) || !list.length) {
+          el.innerHTML = '<p class="text-center text-muted text-sm">ยังไม่มี Supplier — เพิ่มได้จากฟอร์มด้านบน</p>';
+          return;
+        }
+        const group = (title, items) => '<div class="font-bold text-sm mt-2 mb-1">' + title + ' (' + items.length + ')</div>' +
+          (items.length ? '<div class="table-wrap"><table class="data-table"><thead><tr><th>ชื่อ Supplier</th><th>ส่งชิ้นส่วน</th><th style="width:80px;"></th></tr></thead><tbody>' +
+            items.map(s => '<tr><td><strong>' + supplierEsc(s.supplierName) + '</strong></td>' +
+              '<td>' + supplierEsc(SUPPLIER_TYPE_LABELS[s.partType] || s.partType) + '</td>' +
+              '<td style="text-align:right;"><button class="btn btn-outline btn-sm" style="color:var(--danger);" ' +
+              'onclick="deleteSupplierAdmin(\'' + supplierEsc(s.supplierId) + '\', this)" data-name="' + supplierEsc(s.supplierName) + '">' +
+              '<i class="bi bi-trash"></i> ลบ</button></td></tr>').join('') +
+            '</tbody></table></div>' : '<p class="text-muted text-sm">ไม่มีรายการ</p>');
+        el.innerHTML = group('Lug', list.filter(s => s.partType === 'lug' || s.partType === 'both')) +
+          group('Screw', list.filter(s => s.partType === 'screw' || s.partType === 'both'));
+      } catch (err) {
+        el.innerHTML = '<p class="text-center text-danger text-sm">โหลดรายชื่อ Supplier ไม่สำเร็จ <a href="#" onclick="loadSuppliersAdmin();return false;">ลองใหม่</a></p>';
+      }
+    }
+
+    async function addSupplierAdmin() {
+      const input = document.getElementById('supplierNameInput');
+      const supplierName = (input.value || '').trim();
+      const partType = document.getElementById('supplierTypeInput').value;
+      if (!supplierName) { input.focus(); return; }
+      const btn = document.getElementById('supplierAddBtn');
+      btn.disabled = true;
+      try {
+        const result = await API.post('addSupplier', { supplierName, partType });
+        UI.showToast(result.message || (result.success ? 'เพิ่มแล้ว' : 'เพิ่มไม่สำเร็จ'), result.success ? 'success' : 'error');
+        if (result.success) { input.value = ''; loadSuppliersAdmin(); }
+      } catch (err) {
+        UI.showToast('เพิ่ม Supplier ไม่สำเร็จ', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function deleteSupplierAdmin(supplierId, btn) {
+      const name = btn && btn.dataset ? btn.dataset.name : '';
+      if (!confirm('ลบ Supplier "' + name + '" ใช่หรือไม่?\n(ยอดผลิตที่บันทึกไปแล้วยังเก็บชื่อเดิมไว้)')) return;
+      try {
+        const result = await API.post('deleteSupplier', { supplierId });
+        UI.showToast(result.message || (result.success ? 'ลบแล้ว' : 'ลบไม่สำเร็จ'), result.success ? 'success' : 'error');
+        if (result.success) loadSuppliersAdmin();
+      } catch (err) {
+        UI.showToast('ลบ Supplier ไม่สำเร็จ', 'error');
+      }
+    }
+
+    function switchTab(btn, tabId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    async function loadActionHistoryAdmin() {
+      try {
+        const logs = await API.get('getActionLogs', { limit: 200 });
+        if (!logs || logs.length === 0) {
+          document.getElementById('actionLogList').innerHTML = '<p class="text-center text-muted text-sm">ยังไม่มีประวัติ</p>';
+          return;
+        }
+        let html = '<div class="table-wrap"><table class="data-table"><thead><tr>' +
+          '<th>เวลา</th><th>พนักงาน</th><th>Action</th><th>รายละเอียด</th>' +
+          '</tr></thead><tbody>';
+        logs.forEach(l => {
+          html += '<tr><td>' + (l.Timestamp || '') + '</td>' +
+            '<td>' + (l.EmployeeName || '') + ' (' + (l.EmployeeID || '') + ')</td>' +
+            '<td>' + (l.Action || '') + '</td>' +
+            '<td class="text-xs">' + (l.Payload || '') + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+        document.getElementById('actionLogList').innerHTML = html;
+      } catch (err) {
+        document.getElementById('actionLogList').innerHTML = '<p class="text-center text-danger text-sm">โหลดประวัติไม่สำเร็จ</p>';
+      }
+    }
+
+    // === Users ===
+    async function loadUsers() {
+      try {
+        const users = await API.get('getAllUsers');
+        if (!Array.isArray(users)) {
+          document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">โหลดข้อมูลล้มเหลว</td></tr>';
+          return;
+        }
+        allUsersData = users;
+        const roleLabels = { viewer: 'ผู้ชม', operator: 'ช่างผลิต', maintenance: 'ช่างซ่อม', supervisor: 'หัวหน้า', admin: 'ผู้ดูแล' };
+        let html = '';
+        users.forEach(u => {
+          const active = String(u.active) === 'true' || u.active === true;
+          const roleDefaults = ROLE_DEFAULTS[u.role] || ROLE_DEFAULTS.operator;
+          // Fallback to role defaults if backend doesn't send permissions
+          const perms = (u.permissions && Object.keys(u.permissions).length > 0) ? u.permissions : roleDefaults;
+          // Store computed permissions back for edit modal
+          u.permissions = perms;
+          const permCount = PERM_KEYS.filter(k => perms[k]).length;
+          const isCustom = PERM_KEYS.some(k => !!perms[k] !== !!roleDefaults[k]);
+
+          const shiftBadge = u.shift ? '<span class="badge" style="background:' + (u.shift === 'A' ? '#1a73e8' : '#ea4335') + ';color:#fff;font-size:11px;">' + u.shift + '</span>' : '<span class="text-muted text-xs">-</span>';
+          html += '<tr>' +
+            '<td class="font-bold">' + u.employeeId + '</td>' +
+            '<td>' + u.name + '</td>' +
+            '<td><span class="badge badge-info">' + (roleLabels[u.role] || u.role) + '</span></td>' +
+            '<td>' + shiftBadge + '</td>' +
+            '<td>' +
+            '<span class="perm-summary">' + permCount + '/' + PERM_KEYS.length +
+            (isCustom ? ' <span class="badge" style="background:var(--warning);color:var(--dark);font-size:10px;padding:1px 6px;">กำหนดเอง</span>' : '') +
+            '</span></td>' +
+            '<td>' + (active ? '<span class="text-success">ใช้งาน</span>' : '<span class="text-danger">ระงับ</span>') + '</td>' +
+            '<td><button class="btn btn-outline btn-sm" style="min-height:32px;font-size:12px;" ' +
+            'onclick="openEditModal(\'' + u.employeeId + '\')">' +
+            '<i class="bi bi-pencil-square"></i> แก้ไข</button></td>' +
+            '</tr>';
+        });
+        document.getElementById('usersTableBody').innerHTML = html || '<tr><td colspan="7" class="text-center text-muted">ไม่มีข้อมูล</td></tr>';
+      } catch (err) {
+        UI.showToast('โหลดข้อมูลพนักงานล้มเหลว', 'error');
+      }
+    }
+
+    function toggleNewShift() {
+      const role = document.getElementById('newEmpRole').value;
+      const show = (role === 'operator');
+      document.getElementById('newShiftField').style.visibility = show ? 'visible' : 'hidden';
+      if (!show) document.getElementById('newEmpShift').value = '';
+    }
+
+    function toggleEditShift() {
+      const role = document.getElementById('editEmpRole').value;
+      const show = (role === 'operator');
+      document.getElementById('editShiftGroup').style.display = show ? '' : 'none';
+      if (!show) document.getElementById('editEmpShift').value = '';
+    }
+
+    async function addNewUser() {
+      const empId = document.getElementById('newEmpId').value.trim().toUpperCase();
+      const name = document.getElementById('newEmpName').value.trim();
+      const pin = document.getElementById('newEmpPin').value.trim();
+      const role = document.getElementById('newEmpRole').value;
+      const shift = document.getElementById('newEmpShift').value;
+
+      if (!empId || !name || !pin) { UI.showToast('กรุณากรอกข้อมูลให้ครบ', 'warning'); return; }
+      if (pin.length !== 4 || isNaN(pin)) { UI.showToast('PIN ต้องเป็นตัวเลข 4 หลัก', 'warning'); return; }
+      if (role === 'operator' && !shift) { UI.showToast('กรุณาเลือกกะสำหรับ Operator', 'warning'); return; }
+
+      UI.showLoading();
+      try {
+        const result = await API.post('addUser', { userData: { employeeId: empId, name, pin, role, shift } });
+        UI.hideLoading();
+        if (result.success) {
+          UI.showToast('เพิ่มพนักงานเรียบร้อย', 'success');
+          document.getElementById('newEmpId').value = '';
+          document.getElementById('newEmpName').value = '';
+          document.getElementById('newEmpPin').value = '';
+          loadUsers();
+        } else {
+          UI.showToast(result.message, 'error');
+        }
+      } catch (err) {
+        UI.hideLoading();
+        UI.showToast('เพิ่มพนักงานล้มเหลว', 'error');
+      }
+    }
+
+    // === Edit User Modal ===
+    function openEditModal(empId) {
+      editingUser = allUsersData.find(u => u.employeeId === empId);
+      if (!editingUser) return;
+
+      document.getElementById('editEmpId').value = editingUser.employeeId;
+      document.getElementById('editEmpName').value = editingUser.name;
+      document.getElementById('editEmpRole').value = editingUser.role;
+      document.getElementById('editEmpShift').value = editingUser.shift || '';
+      document.getElementById('editEmpPin').value = '';
+      document.getElementById('editEmpActive').value = String(editingUser.active === true || String(editingUser.active) === 'true');
+      toggleEditShift();
+
+      // Set permission checkboxes
+      const perms = editingUser.permissions || ROLE_DEFAULTS[editingUser.role] || {};
+      PERM_KEYS.forEach(key => {
+        document.getElementById('perm_' + key).checked = !!perms[key];
+      });
+
+      document.getElementById('editUserModal').classList.add('show');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editUserModal').classList.remove('show');
+      editingUser = null;
+    }
+
+    function onRoleChange() {
+      toggleEditShift();
+      // When role changes, ask if they want to reset permissions to new role defaults
+      const newRole = document.getElementById('editEmpRole').value;
+      const defaults = ROLE_DEFAULTS[newRole] || {};
+      const currentPerms = {};
+      PERM_KEYS.forEach(k => { currentPerms[k] = document.getElementById('perm_' + k).checked; });
+
+      // Check if current perms differ from new role defaults
+      const differs = PERM_KEYS.some(k => !!currentPerms[k] !== !!defaults[k]);
+      if (differs) {
+        if (confirm('เปลี่ยน Role เป็น ' + newRole + '\nต้องการรีเซ็ตสิทธิ์ตาม Role ใหม่หรือไม่?')) {
+          setPermCheckboxes(defaults);
+        }
+      }
+    }
+
+    function resetToRoleDefaults() {
+      const role = document.getElementById('editEmpRole').value;
+      const defaults = ROLE_DEFAULTS[role] || {};
+      setPermCheckboxes(defaults);
+      UI.showToast('รีเซ็ตสิทธิ์ตาม Role: ' + role, 'info');
+    }
+
+    function setPermCheckboxes(perms) {
+      PERM_KEYS.forEach(key => {
+        document.getElementById('perm_' + key).checked = !!perms[key];
+      });
+    }
+
+    async function saveUserEdit() {
+      if (!editingUser) return;
+
+      const empId = editingUser.employeeId;
+      const newName = document.getElementById('editEmpName').value.trim();
+      const newRole = document.getElementById('editEmpRole').value;
+      const newPin = document.getElementById('editEmpPin').value.trim();
+      const newActive = document.getElementById('editEmpActive').value === 'true';
+
+      if (!newName) { UI.showToast('กรุณากรอกชื่อ', 'warning'); return; }
+      if (newPin && (newPin.length !== 4 || isNaN(newPin))) { UI.showToast('PIN ต้องเป็นตัวเลข 4 หลัก', 'warning'); return; }
+
+      // Collect permissions
+      const permissions = {};
+      PERM_KEYS.forEach(key => {
+        permissions[key] = document.getElementById('perm_' + key).checked;
+      });
+
+      // Build updates object
+      const newShift = document.getElementById('editEmpShift').value;
+      const updates = {
+        Name: newName,
+        Role: newRole,
+        Shift: newShift,
+        Active: newActive,
+        Permissions: permissions
+      };
+      if (newPin) {
+        updates.PIN = newPin;
+      }
+
+      const btn = document.getElementById('saveEditBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;"></div> กำลังบันทึก...';
+
+      try {
+        const result = await API.post('updateUser', { employeeId: empId, updates });
+        if (result.success) {
+          UI.showToast('อัพเดท ' + empId + ' เรียบร้อย (ผู้ใช้ต้องเข้าใหม่เพื่อรับสิทธิ์ล่าสุด)', 'success');
+          closeEditModal();
+          loadUsers();
+        } else {
+          UI.showToast(result.message || 'อัพเดทล้มเหลว', 'error');
+        }
+      } catch (err) {
+        UI.showToast('อัพเดทล้มเหลว', 'error');
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg"></i> บันทึก';
+    }
+
+    // === Machines ===
+    async function loadMachinesAdmin() {
+      try {
+        const machines = await API.get('getMachines');
+        let html = '';
+        machines.forEach(m => {
+          const installed = m.installed !== false;
+          const statusColor = m.status === 'running' ? 'var(--success)' : m.status === 'maintenance' ? 'var(--warning)' : 'var(--danger)';
+          const statusText = m.status === 'running' ? 'ทำงาน' : m.status === 'maintenance' ? 'ซ่อมบำรุง' : 'หยุด';
+          const instBtn = installed
+            ? '<button class="btn btn-sm" style="background:var(--success);color:#fff;" onclick="setInstalled(\'' + m.machineId + '\',false)"><i class="bi bi-check2-circle"></i> ติดตั้งแล้ว</button>'
+            : '<button class="btn btn-sm" style="background:#888;color:#fff;" onclick="setInstalled(\'' + m.machineId + '\',true)"><i class="bi bi-hourglass-split"></i> ยังไม่ติดตั้ง</button>';
+          html += '<div class="card" style="border-left:4px solid ' + (installed ? statusColor : '#ccc') + ';' + (!installed ? 'opacity:0.65;' : '') + '">' +
+            '<div class="d-flex justify-between items-center">' +
+            '<div style="display:flex;align-items:center;gap:8px;"><span class="font-bold">' + m.machineName + '</span><span class="text-muted text-sm">(' + m.machineId + ')</span></div>' +
+            (installed ? '<span class="badge badge-' + m.status + '">' + statusText + '</span>' : '') + '</div>' +
+            '<div class="text-sm text-muted mt-1">สินค้า: ' + (m.assignedProducts ? m.assignedProducts.join(', ') : '-') + '</div>' +
+            '<div class="d-flex gap-2 mt-2" style="flex-wrap:wrap;">' +
+            instBtn +
+            (installed ? ('<input type="number" min="0" class="form-input" id="cap_' + m.machineId + '" value="' + (m.capacity || 0) + '" style="max-width:140px;height:34px;" placeholder="Capacity (pcs/hr)">' +
+            '<button class="btn btn-outline btn-sm" onclick="saveCapacity(\'' + m.machineId + '\')"><i class="bi bi-speedometer2"></i> บันทึก Capacity</button>') : '') +
+            '</div>' +
+            (installed ? ('<div class="d-flex gap-2 mt-2">' +
+            '<button class="btn btn-outline btn-sm" style="color:var(--success);" onclick="setStatus(\'' + m.machineId + '\',\'running\')"><i class="bi bi-play"></i> ทำงาน</button>' +
+            '<button class="btn btn-outline btn-sm" style="color:var(--warning);" onclick="setStatus(\'' + m.machineId + '\',\'maintenance\')"><i class="bi bi-wrench"></i> ซ่อม</button>' +
+            '<button class="btn btn-outline btn-sm" style="color:var(--danger);" onclick="setStatus(\'' + m.machineId + '\',\'down\')"><i class="bi bi-stop"></i> หยุด</button>' +
+            '</div>') : '') +
+            '</div>';
+        });
+        document.getElementById('machinesList').innerHTML = html;
+      } catch (err) {}
+    }
+
+    async function setInstalled(machineId, installed) {
+      try {
+        const result = await API.post('updateMachineInstalled', { machineId, installed });
+        if (result && result.success) {
+          UI.showToast(installed ? 'ตั้งเป็น "ติดตั้งแล้ว" เรียบร้อย' : 'ตั้งเป็น "ยังไม่ติดตั้ง" เรียบร้อย — เครื่องนี้จะไม่นับในแผนผลิต', 'success');
+        } else {
+          UI.showToast((result && result.message) || 'อัพเดทล้มเหลว', 'error');
+        }
+        loadMachinesAdmin();
+      } catch (err) { UI.showToast('อัพเดทล้มเหลว', 'error'); }
+    }
+
+    async function setStatus(machineId, status) {
+      try {
+        await API.post('updateMachineStatus', { machineId, status });
+        UI.showToast('อัพเดทสถานะเรียบร้อย', 'success');
+        loadMachinesAdmin();
+      } catch (err) { UI.showToast('อัพเดทล้มเหลว', 'error'); }
+    }
+
+    async function saveCapacity(machineId) {
+      const input = document.getElementById('cap_' + machineId);
+      const capacity = Number(input ? input.value : 0);
+      if (isNaN(capacity) || capacity < 0) {
+        UI.showToast('Capacity ไม่ถูกต้อง', 'warning');
+        return;
+      }
+      try {
+        const result = await API.post('updateMachineCapacity', { machineId, capacity });
+        if (result && result.success) {
+          UI.showToast('บันทึก Capacity เรียบร้อย', 'success');
+          loadMachinesAdmin();
+        } else {
+          UI.showToast((result && result.message) || 'บันทึกล้มเหลว', 'error');
+        }
+      } catch (err) {
+        UI.showToast('บันทึกล้มเหลว', 'error');
+      }
+    }
+
+    // === Products ===
+    async function loadProductsAdmin() {
+      try {
+        const products = await API.get('getAllProductsWithBOM');
+        let html = '';
+        products.forEach(p => {
+          html += '<div class="card">' +
+            '<div class="font-bold">' + p.productCode + '</div>' +
+            '<div class="text-sm text-muted">' + p.productName + '</div>' +
+            '<div class="text-xs text-muted mt-1">Default: ' + (p.defaultQty || 1300) + ' pcs</div>';
+          if (p.bom && p.bom.length) {
+            html += '<div class="mt-2 text-sm"><strong>BOM:</strong><ul style="margin:4px 0 0;padding-left:20px;">';
+            p.bom.forEach(c => {
+              html += '<li>' + c.componentCode + ' - ' + c.componentName + ' (x' + c.qtyPerUnit + ') <span class="text-muted">' + c.supplier + '</span></li>';
+            });
+            html += '</ul></div>';
+          }
+          html += '</div>';
+        });
+        document.getElementById('productsList').innerHTML = html || '<p class="text-muted">ไม่มีผลิตภัณฑ์</p>';
+      } catch (err) {}
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+{
+  "apps": [
+    {
+      "id": "coil-winding",
+      "name": "Coil Winding",
+      "nameTh": "ระบบผลิต Coil Winding (CWM)",
+      "description": "บันทึก NG, แผนการผลิต, Daily Check, Parts, รายงานอัตโนมัติ",
+      "icon": "🌀",
+      "color": "#2563eb",
+      "repo": "jrh91234/Coil-winding",
+      "branch": "main",
+      "entry": "index.html",
+      "include": [
+        "index.html",
+        "css",
+        "js",
+        "Logo JR.jpg"
+      ]
+    },
+    {
+      "id": "coil-cp-cpk",
+      "name": "Coil Cp/Cpk",
+      "nameTh": "SPC Dashboard - Cp/Cpk",
+      "description": "วิเคราะห์ความสามารถกระบวนการ Cp/Cpk และ Appearance check",
+      "icon": "📈",
+      "color": "#0891b2",
+      "repo": "jrh91234/coil-CP-CPK",
+      "branch": "main",
+      "entry": "index.html",
+      "include": [
+        "index.html",
+        "css",
+        "js",
+        "images"
+      ]
+    },
+    {
+      "id": "job-order-tracking",
+      "name": "Job Order Tracking",
+      "nameTh": "ติดตาม Job Order",
+      "description": "ลงยอดผลิต, Dashboard, Barcode, Incident และกำลังคน",
+      "icon": "📋",
+      "color": "#7c3aed",
+      "repo": "jrh91234/Job-order-tracking",
+      "branch": "main",
+      "entry": "index.html",
+      "links": [
+        {
+          "label": "Dashboard",
+          "path": "dashboard.html"
+        },
+        {
+          "label": "Barcode",
+          "path": "barcode.html"
+        }
+      ],
+      "include": [
+        "index.html",
+        "dashboard.html",
+        "barcode.html",
+        "config.json",
+        "report-fonts.js",
+        "Logo JR.jpg"
+      ]
+    },
+    {
+      "id": "lug-screw",
+      "name": "Lug & Screw",
+      "nameTh": "H1 Lug & Screw Management",
+      "description": "ผลิต, Sorting, Daily Check, ซ่อมบำรุง, วัตถุดิบ, ต้นทุน",
+      "icon": "🔩",
+      "color": "#ea580c",
+      "repo": "jrh91234/Lug-Screw-management-system",
+      "branch": "claude/h1-production-management-IYnqQ",
+      "entry": "index.html",
+      "source": "docs",
+      "include": [
+        "."
+      ]
+    },
+    {
+      "id": "whsys",
+      "name": "WHSYS",
+      "nameTh": "Factory BOM / คลังสินค้า",
+      "description": "BOM, Part list รายแผนก และข้อมูลคลัง",
+      "icon": "🏭",
+      "color": "#16a34a",
+      "repo": "jrh91234/WHSYS",
+      "branch": "main",
+      "entry": "index.html",
+      "include": [
+        "index.html"
+      ]
+    },
+    {
+      "id": "pl-business-plan",
+      "name": "P&L Business Plan",
+      "nameTh": "P&L รายแผนก & Business Plan",
+      "description": "กำไรขาดทุนรายแผนก และแผนธุรกิจ (Google Sheets)",
+      "icon": "💰",
+      "color": "#ca8a04",
+      "repo": "jrh91234/department-pl-business-plan",
+      "branch": "main",
+      "entry": "index.html",
+      "source": "site",
+      "include": [
+        "."
+      ]
+    },
+    {
+      "id": "organize",
+      "name": "Organize (HR)",
+      "nameTh": "ระบบบุคคล / ผังองค์กร",
+      "description": "ข้อมูลพนักงาน แผนก ตำแหน่ง และผังองค์กร",
+      "icon": "👥",
+      "color": "#db2777",
+      "repo": "jrh91234/-Organize",
+      "branch": "main",
+      "entry": "index.html",
+      "include": [
+        "index.html"
+      ]
+    }
+  ]
+}
