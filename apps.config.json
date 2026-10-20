@@ -167,7 +167,7 @@
         "admin",
         "supervisor",
         "leader",
-        "user"
+        "viewer"
       ],
       "sessionKeys": [
         "currentUser"
