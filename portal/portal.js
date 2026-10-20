@@ -91,6 +91,7 @@
 
   function logout() {
     SSO.clear();
+    resetDashboards();
     clearAppSessions();
     session = null;
     Object.keys(frames).forEach((id) => {
@@ -195,19 +196,29 @@
     document.body.classList.remove("nav-open");
     const app = apps.find((a) => a.id === id);
     const adminView = id === "admin" && isAdmin();
+    const dashView = id === "dashboards";
     if (app && !frames[app.id]) {
       frameFor(app);
       renderNav();
     }
     document
       .querySelectorAll(".nav-item")
-      .forEach((n) => n.classList.toggle("active", n.dataset.id === (app ? app.id : adminView ? "admin" : "")));
+      .forEach((n) =>
+        n.classList.toggle("active", n.dataset.id === (app ? app.id : adminView ? "admin" : dashView ? "dashboards" : ""))
+      );
 
-    $("home").hidden = !!(app || adminView);
+    $("home").hidden = !!(app || adminView || dashView);
     $("admin").hidden = !adminView;
+    $("dash").hidden = !dashView;
     $("frames").hidden = !app;
     $("appActions").hidden = !app;
 
+    if (dashView) {
+      $("current").textContent = "Dashboard รวม";
+      document.title = "Dashboard รวม · Assembly Super App";
+      renderDashboards();
+      return;
+    }
     if (adminView) {
       $("current").textContent = "จัดการผู้ใช้";
       document.title = "จัดการผู้ใช้ · Assembly Super App";
@@ -252,6 +263,133 @@
   $("scrim").addEventListener("click", () => document.body.classList.remove("nav-open"));
   $("search").addEventListener("input", (e) => renderGrid(e.target.value));
   window.addEventListener("hashchange", route);
+
+  // ---------- combined dashboards ----------
+  // Each panel is a separate iframe on the app's dashboard page. Panels load
+  // when scrolled into view; apps whose dashboard is a tab or a dialog get a
+  // small hook (config "dashboard": call/arg/when or click) run inside the
+  // frame, which works because the apps share this origin.
+
+  let dashCols = 2;
+  try {
+    dashCols = Number(localStorage.getItem("SUPERAPP_DASH_COLS")) || 2;
+  } catch (e) {}
+  const dashObserver =
+    "IntersectionObserver" in window
+      ? new IntersectionObserver(
+          (entries) =>
+            entries.forEach((e) => {
+              if (!e.isIntersecting) return;
+              dashObserver.unobserve(e.target);
+              loadDashPanel(e.target);
+            }),
+          { rootMargin: "200px" }
+        )
+      : null;
+
+  function setDashCols(n) {
+    dashCols = n;
+    $("dashGrid").style.setProperty("--cols", n);
+    document.querySelectorAll(".seg [data-cols]").forEach((b) => b.classList.toggle("on", Number(b.dataset.cols) === n));
+    try {
+      localStorage.setItem("SUPERAPP_DASH_COLS", String(n));
+    } catch (e) {}
+  }
+
+  function resetDashboards() {
+    $("dashGrid").replaceChildren();
+    delete $("dashGrid").dataset.key;
+  }
+
+  function renderDashboards() {
+    setDashCols(dashCols);
+    const list = apps.filter((a) => a.dashboard);
+    const key = list.map((a) => a.id).join(",");
+    const grid = $("dashGrid");
+    if (grid.dataset.key === key) return; // keep loaded panels as they are
+    grid.dataset.key = key;
+    if (!list.length) {
+      grid.replaceChildren(el("p", { class: "empty", text: "ยังไม่มีระบบที่คุณมีสิทธิ์ดู Dashboard" }));
+      return;
+    }
+    grid.replaceChildren(
+      ...list.map((app) => {
+        const body = el("div", { class: "dash-body" }, [el("div", { class: "dash-loading", text: "กำลังโหลด…" })]);
+        const panel = el("section", { class: "dash-panel", "data-app": app.id }, [
+          el("header", { class: "dash-head" }, [
+            el("span", { class: "dash-title" }, [portalIcon(app.icon), app.name, el("small", { text: app.nameTh })]),
+            el("span", { class: "dash-actions" }, [
+              Object.assign(el("button", { class: "icon-btn", title: "โหลดใหม่", type: "button" }, [portalIcon("reload")]), {
+                onclick: () => reloadDashPanel(panel),
+              }),
+              Object.assign(el("button", { class: "icon-btn", title: "ขยาย / ย่อ", type: "button" }, [portalIcon("expand")]), {
+                onclick: () => panel.classList.toggle("full"),
+              }),
+              el("a", { class: "icon-btn", href: `#/${app.id}`, title: "เปิดระบบเต็มหน้า" }, [portalIcon("external")]),
+            ]),
+          ]),
+          body,
+        ]);
+        if (dashObserver) dashObserver.observe(panel);
+        else setTimeout(() => loadDashPanel(panel));
+        return panel;
+      })
+    );
+  }
+
+  function loadDashPanel(panel) {
+    const app = apps.find((a) => a.id === panel.dataset.app);
+    if (!app || panel.querySelector("iframe")) return;
+    const frame = el("iframe", {
+      src: appUrl(app, app.dashboard.path),
+      title: `Dashboard ${app.name}`,
+      loading: "lazy",
+      allow: "clipboard-read; clipboard-write; fullscreen",
+    });
+    frame.addEventListener("load", () => {
+      const loading = panel.querySelector(".dash-loading");
+      if (loading) loading.remove();
+      runDashHook(frame, app.dashboard);
+    });
+    panel.querySelector(".dash-body").append(frame);
+  }
+
+  function reloadDashPanel(panel) {
+    const frame = panel.querySelector("iframe");
+    if (frame) frame.src = frame.src;
+    else loadDashPanel(panel);
+  }
+
+  function runDashHook(frame, d) {
+    if (!d.call && !d.click) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      try {
+        const w = frame.contentWindow;
+        if (d.call && typeof w[d.call] === "function" && (!d.when || w[d.when])) {
+          w[d.call](d.arg);
+          return clearInterval(timer);
+        }
+        if (d.click) {
+          const target = w.document.querySelector(d.click);
+          if (target) {
+            target.click();
+            return clearInterval(timer);
+          }
+        }
+      } catch (e) {
+        return clearInterval(timer); // frame navigated away from this origin
+      }
+      if (tries >= 60) clearInterval(timer); // not logged in yet, or the app changed
+    }, 500);
+  }
+
+  document.querySelectorAll(".seg [data-cols]").forEach((b) => b.addEventListener("click", () => setDashCols(Number(b.dataset.cols))));
+  $("dashReloadAll").addEventListener("click", () => document.querySelectorAll(".dash-panel").forEach(reloadDashPanel));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") document.querySelectorAll(".dash-panel.full").forEach((p) => p.classList.remove("full"));
+  });
 
   // ---------- user menu / password ----------
 

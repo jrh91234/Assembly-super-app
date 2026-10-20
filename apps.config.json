@@ -26,7 +26,13 @@
       ],
       "sessionKeys": [
         "CWM_AUTH_USER"
-      ]
+      ],
+      "dashboard": {
+        "path": "index.html",
+        "call": "switchTab",
+        "arg": "dashboard",
+        "when": "currentUser"
+      }
     },
     {
       "id": "coil-cp-cpk",
@@ -47,7 +53,10 @@
       "roles": [
         "user"
       ],
-      "sessionKeys": []
+      "sessionKeys": [],
+      "dashboard": {
+        "path": "index.html"
+      }
     },
     {
       "id": "job-order-tracking",
@@ -61,11 +70,7 @@
       "entry": "index.html",
       "links": [
         {
-          "label": "Dashboard",
-          "path": "dashboard.html"
-        },
-        {
-          "label": "Barcode",
+          "label": "Barcode Real-time",
           "path": "barcode.html"
         }
       ],
@@ -82,7 +87,10 @@
       ],
       "sessionKeys": [
         "job_tracker_auth"
-      ]
+      ],
+      "dashboard": {
+        "path": "barcode.html"
+      }
     },
     {
       "id": "lug-screw",
@@ -108,7 +116,10 @@
       "sessionKeys": [
         "h1_token",
         "h1_user"
-      ]
+      ],
+      "dashboard": {
+        "path": "pages/dashboard.html"
+      }
     },
     {
       "id": "whsys",
@@ -129,7 +140,10 @@
       ],
       "sessionKeys": [
         "nlc_erp_session"
-      ]
+      ],
+      "dashboard": {
+        "path": "index.html"
+      }
     },
     {
       "id": "pl-business-plan",
@@ -148,7 +162,10 @@
       "roles": [
         "user"
       ],
-      "sessionKeys": []
+      "sessionKeys": [],
+      "dashboard": {
+        "path": "index.html"
+      }
     },
     {
       "id": "organize",
@@ -174,7 +191,11 @@
       ],
       "fields": [
         "dept"
-      ]
+      ],
+      "dashboard": {
+        "path": "index.html",
+        "click": "button[aria-label=\"แดชบอร์ดสรุป\"]"
+      }
     }
   ]
 }
