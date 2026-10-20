@@ -53,3 +53,36 @@ Settings → Pages → Source: **GitHub Actions** แล้ว URL จะเป�
 
 ทุกแอปอยู่ origin เดียวกับ GitHub Pages เดิม (`jrh91234.github.io`) จึงใช้ localStorage
 และ OAuth origin (P&L) ร่วมกับเวอร์ชันเดิมได้ทันที
+
+## ระบบผู้ใช้กลาง (SSO) และ Admin panel
+
+ผู้ใช้ login ครั้งเดียวที่ Portal แล้วแต่ละแอปจะเข้าสู่ระบบให้อัตโนมัติตามสิทธิ์ (role) ที่ Admin กำหนดรายแอป
+
+```
+scr/auth.gs           Apps Script กลาง: ชีต Users, login, verify token, จัดการผู้ใช้
+portal/sso.js         เก็บ session ไว้ที่ localStorage["SUPERAPP_SSO"] (ใช้ร่วมกันทุกแอปบน jrh91234.github.io)
+#/admin               หน้า Admin panel (เห็นเฉพาะผู้ที่มีสิทธิ์ Portal = admin)
+```
+
+### ติดตั้งครั้งแรก
+
+1. สร้าง Google Sheet ใหม่ (เช่น `Super App Users`) → Extensions → Apps Script
+   วางโค้ดจาก `scr/auth.gs` และ `scr/appsscript.json`
+2. Deploy → New deployment → Web app — Execute as: **Me**, Who has access: **Anyone**
+3. คัดลอก URL `/exec` มาใส่ใน `apps.config.json` ช่อง `"authUrl"` แล้ว commit
+4. เปิด Portal แล้ว login ด้วย `admin` / `admin` (ใช้ได้เฉพาะตอนที่ยังไม่มีผู้ดูแลระบบ) ระบบจะบังคับให้เปลี่ยนรหัสผ่านทันที
+5. ไปที่ **จัดการผู้ใช้** เพื่อเพิ่มผู้ใช้และเลือก role ของแต่ละแอป
+
+ถ้า `authUrl` ว่าง Portal จะทำงานแบบเดิม (ไม่มี login กลาง)
+
+### การเชื่อมแต่ละแอป
+
+| แอป | วิธีรับ SSO | ต้อง deploy Apps Script ของแอปใหม่ไหม |
+|-----|-------------|------------------|
+| Coil Winding, WHSYS, Job Order Tracking | หน้าเว็บถาม `verify` จาก auth กลางโดยตรง | ไม่ต้อง |
+| Lug & Screw, Organize (HR) | backend ของแอปตรวจ token กับ auth กลาง แล้วออก session ของตัวเอง (สร้าง/อัปเดตผู้ใช้ในชีต Users ของแอปให้อัตโนมัติ) | ต้อง deploy ใหม่ และตั้ง Script Property `SUPERAPP_AUTH_URL` = URL ของ auth กลาง |
+| Coil Cp/Cpk, P&L | ไม่มี login ของตัวเอง / ใช้บัญชี Google — Portal ซ่อนแอปจากผู้ที่ไม่มีสิทธิ์ | ไม่ต้อง |
+
+- Lug & Screw ใช้ Username ของ Super App (ตัวพิมพ์ใหญ่) เป็นรหัสพนักงาน
+- login แบบเดิมของแต่ละแอปยังใช้ได้ตามปกติ
+- ออกจากระบบที่ Portal จะล้าง session ของทุกแอปด้วย

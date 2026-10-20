@@ -22,6 +22,15 @@
       <button class="icon-btn" id="reloadBtn" title="โหลดแอปใหม่">⟳</button>
       <a class="icon-btn" id="newTabBtn" target="_blank" rel="noopener" title="เปิดในแท็บใหม่">↗</a>
     </div>
+    <div class="user-menu" id="userMenu" hidden>
+      <button class="user-btn" id="userBtn" aria-haspopup="true">
+        <span class="avatar" id="userAvatar"></span><span class="user-name" id="userName"></span>
+      </button>
+      <div class="dropdown" id="userDropdown" hidden>
+        <button id="changePwBtn">🔑 เปลี่ยนรหัสผ่าน</button>
+        <button id="logoutBtn">🚪 ออกจากระบบ</button>
+      </div>
+    </div>
   </header>
 
   <nav class="sidebar" id="sidebar">
@@ -30,23 +39,100 @@
     </a>
     <div class="nav-sep">แอปพลิเคชัน</div>
     <div id="navApps"></div>
+    <div id="navAdmin" hidden>
+      <div class="nav-sep">ผู้ดูแลระบบ</div>
+      <a class="nav-item" href="#/admin" data-id="admin">
+        <span class="nav-icon">⚙️</span><span class="nav-label">จัดการผู้ใช้</span>
+      </a>
+    </div>
   </nav>
   <div class="scrim" id="scrim"></div>
 
   <main class="content">
     <section class="home" id="home">
       <div class="hero">
-        <h1>ระบบงานโรงงานในที่เดียว</h1>
+        <h1 id="greeting">ระบบงานโรงงานในที่เดียว</h1>
         <p>เลือกแอปที่ต้องการใช้งาน แอปที่เปิดแล้วจะคงสถานะไว้เมื่อสลับไปมา</p>
         <input type="search" id="search" placeholder="ค้นหาแอป…" autocomplete="off">
       </div>
       <div class="grid" id="grid"></div>
-      <p class="footnote">แต่ละแอปยังเชื่อมต่อ Google Apps Script / Google Sheets ของตัวเองเหมือนเดิม
-        · โค้ดซิงก์จาก repo ต้นทางด้วย <code>scripts/sync-apps.py</code></p>
+      <p class="footnote" id="footnote">แต่ละแอปยังเชื่อมต่อ Google Apps Script / Google Sheets ของตัวเองเหมือนเดิม</p>
     </section>
+
+    <section class="admin" id="admin" hidden>
+      <div class="admin-head">
+        <div>
+          <h1>จัดการผู้ใช้</h1>
+          <p>ผู้ใช้หนึ่งคน login ครั้งเดียวแล้วใช้ได้ทุกแอปที่กำหนดสิทธิ์ไว้</p>
+        </div>
+        <button class="btn primary" id="addUserBtn">+ เพิ่มผู้ใช้</button>
+      </div>
+      <input type="search" id="userSearch" placeholder="ค้นหาผู้ใช้…" autocomplete="off">
+      <div class="table-wrap">
+        <table class="users">
+          <thead><tr><th>ผู้ใช้</th><th>สิทธิ์แอป</th><th>สถานะ</th><th>เข้าใช้ล่าสุด</th><th></th></tr></thead>
+          <tbody id="userRows"><tr><td colspan="5" class="muted">กำลังโหลด…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
     <div class="frames" id="frames"></div>
   </main>
 
+  <!-- Login -->
+  <div class="overlay" id="loginOverlay" hidden>
+    <form class="login-card" id="loginForm">
+      <img src="portal/icon.svg" alt="" width="48" height="48">
+      <h1>Assembly Super App</h1>
+      <p class="muted">เข้าสู่ระบบครั้งเดียว ใช้ได้ทุกแอป</p>
+      <label>Username<input id="loginUser" autocomplete="username" autocapitalize="none" required></label>
+      <label>Password<input id="loginPass" type="password" autocomplete="current-password" required></label>
+      <p class="error" id="loginError" hidden></p>
+      <button class="btn primary" id="loginBtn" type="submit">เข้าสู่ระบบ</button>
+    </form>
+  </div>
+
+  <!-- User editor -->
+  <dialog class="modal" id="userModal">
+    <form method="dialog" id="userForm">
+      <h2 id="userModalTitle">เพิ่มผู้ใช้</h2>
+      <div class="form-row">
+        <label>Username<input id="fUsername" required autocapitalize="none" pattern="[A-Za-z0-9._@-]+" title="a-z 0-9 . _ - @"></label>
+        <label>ชื่อ-สกุล<input id="fName" required></label>
+      </div>
+      <div class="form-row">
+        <label><span id="fPasswordLabel">รหัสผ่าน</span><input id="fPassword" type="password" autocomplete="new-password" minlength="4"></label>
+        <label class="check"><input type="checkbox" id="fActive" checked> เปิดใช้งานบัญชี</label>
+      </div>
+      <h3>สิทธิ์ในแต่ละแอป</h3>
+      <div class="app-roles" id="fApps"></div>
+      <p class="error" id="userFormError" hidden></p>
+      <div class="modal-actions">
+        <button class="btn danger" type="button" id="deleteUserBtn" hidden>ลบผู้ใช้</button>
+        <span class="spacer"></span>
+        <button class="btn" type="button" id="cancelUserBtn">ยกเลิก</button>
+        <button class="btn primary" type="submit" id="saveUserBtn">บันทึก</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Change password -->
+  <dialog class="modal small" id="pwModal">
+    <form method="dialog" id="pwForm">
+      <h2>เปลี่ยนรหัสผ่าน</h2>
+      <p class="warn" id="pwNotice" hidden>คุณกำลังใช้รหัสผ่านเริ่มต้น กรุณาเปลี่ยนก่อนใช้งาน</p>
+      <label>รหัสผ่านเดิม<input id="pwOld" type="password" autocomplete="current-password" required></label>
+      <label>รหัสผ่านใหม่<input id="pwNew" type="password" autocomplete="new-password" minlength="4" required></label>
+      <p class="error" id="pwError" hidden></p>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button class="btn" type="button" id="pwCancel">ยกเลิก</button>
+        <button class="btn primary" type="submit">บันทึก</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="portal/sso.js"></script>
   <script src="portal/portal.js"></script>
 </body>
 </html>
