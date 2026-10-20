@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#1e3a5f"/>
+  <!-- Caliper body - main beam -->
+  <rect x="60" y="230" width="392" height="52" rx="8" fill="#c0c8d8"/>
+  <!-- Upper jaw fixed -->
+  <rect x="60" y="150" width="44" height="132" rx="6" fill="#a0aabb"/>
+  <!-- Lower jaw fixed -->
+  <rect x="60" y="282" width="44" height="90" rx="6" fill="#a0aabb"/>
+  <!-- Upper jaw sliding -->
+  <rect x="220" y="170" width="36" height="112" rx="6" fill="#8898b0"/>
+  <!-- Lower jaw sliding -->
+  <rect x="220" y="282" width="36" height="72" rx="6" fill="#8898b0"/>
+  <!-- Scale markings on beam -->
+  <line x1="120" y1="245" x2="120" y2="262" stroke="#4a5568" stroke-width="3"/>
+  <line x1="152" y1="248" x2="152" y2="262" stroke="#4a5568" stroke-width="2"/>
+  <line x1="168" y1="248" x2="168" y2="262" stroke="#4a5568" stroke-width="2"/>
+  <line x1="184" y1="248" x2="184" y2="262" stroke="#4a5568" stroke-width="2"/>
+  <line x1="200" y1="245" x2="200" y2="262" stroke="#4a5568" stroke-width="3"/>
+  <line x1="280" y1="245" x2="280" y2="262" stroke="#4a5568" stroke-width="3"/>
+  <line x1="320" y1="245" x2="320" y2="262" stroke="#4a5568" stroke-width="3"/>
+  <line x1="360" y1="245" x2="360" y2="262" stroke="#4a5568" stroke-width="3"/>
+  <!-- Vernier plate -->
+  <rect x="210" y="238" width="56" height="36" rx="4" fill="#d4aa44"/>
+  <line x1="222" y1="244" x2="222" y2="268" stroke="#8b6914" stroke-width="1.5"/>
+  <line x1="232" y1="244" x2="232" y2="268" stroke="#8b6914" stroke-width="1.5"/>
+  <line x1="242" y1="244" x2="242" y2="268" stroke="#8b6914" stroke-width="1.5"/>
+  <line x1="252" y1="244" x2="252" y2="268" stroke="#8b6914" stroke-width="1.5"/>
+  <!-- Lock screw -->
+  <circle cx="390" cy="256" r="16" fill="#90a0b8"/>
+  <circle cx="390" cy="256" r="8" fill="#707888"/>
+  <!-- Text SPC -->
+  <text x="256" y="400" font-family="Arial,sans-serif" font-weight="bold" font-size="72" fill="#d4aa44" text-anchor="middle">SPC</text>
+</svg>

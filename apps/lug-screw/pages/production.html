@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>กรอกยอดผลิต - H1 Lug&Screw</title>
+  <link rel="icon" href="https://img.icons8.com/color/48/factory.png">
+  <!-- Open the TLS connections to the font/icon CDNs while the HTML is still parsing;
+       on factory phones over mobile data these handshakes were blocking first paint. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://script.google.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container mt-3">
+    <!-- Shift & Date Info -->
+    <div class="d-flex justify-between items-center mb-2">
+      <span class="badge badge-info" id="shiftBadge"></span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+        <label class="text-xs text-muted" for="workDateInput" style="margin:0;">วันที่งาน</label>
+        <input type="date" class="date-input" id="workDateInput" style="min-width:145px;" onchange="onWorkDateChange(this.value)">
+        <span class="text-muted text-sm" id="dateDisplay"></span>
+      </div>
+    </div>
+
+    <!-- Machine Selection -->
+    <div class="card">
+      <div class="card-title"><i class="bi bi-gear"></i> เลือกเครื่องจักร</div>
+      <div class="machine-grid" id="machineGrid">
+        <div class="text-center text-muted" style="grid-column:1/-1;padding:20px;">
+          <div class="spinner" style="margin:0 auto;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product (locked: set on the machines page) -->
+    <div class="card hidden" id="productSection">
+      <div class="card-title"><i class="bi bi-box"></i> ผลิตภัณฑ์ <span class="text-muted text-sm"><i class="bi bi-lock-fill"></i> ตั้งค่าจากเมนูเครื่องจักร</span></div>
+      <div id="productList"></div>
+    </div>
+
+    <!-- Job Order (locked: set on the machines page) -->
+    <div class="card hidden" id="jobOrderSection">
+      <div class="card-title"><i class="bi bi-card-checklist"></i> Job Order <span class="text-muted text-sm"><i class="bi bi-lock-fill"></i> ตั้งค่าจากเมนูเครื่องจักร</span></div>
+      <div id="jobOrderDisplay"></div>
+    </div>
+
+    <!-- Time Period Selection -->
+    <div class="card hidden" id="timePeriodSection">
+      <div class="card-title"><i class="bi bi-clock"></i> ช่วงเวลา (รายชั่วโมง)</div>
+      <div id="hourlyGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;"></div>
+    </div>
+
+    <!-- Quantity Input -->
+    <div class="card hidden" id="qtySection">
+      <div class="card-title"><i class="bi bi-123"></i> จำนวน</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="form-group">
+          <label class="form-label">ผลิตได้ (pcs)</label>
+          <input type="number" class="form-input form-input-lg" id="actualQty" value="1300"
+                 step="1" inputmode="numeric" placeholder="กรอกได้ทั้งบวก/ลบ" style="border-color:var(--primary);">
+        </div>
+        <div class="form-group">
+          <label class="form-label">NG (pcs)</label>
+          <input type="number" class="form-input text-center" id="defectQty" value="0" inputmode="numeric" readonly>
+        </div>
+      </div>
+      <div class="form-group mt-2">
+        <label class="form-label">ของเสียแยกตาม Component</label>
+        <div id="defectByComponentWrap" class="text-sm text-muted">เลือกสินค้าเพื่อแสดงรายการ Component</div>
+        <div class="text-xs text-muted mt-1">* ระบบใช้ค่าสูงสุดจากรายการที่กรอกเป็น NG รวม (ไม่บวกซ้ำ)</div>
+      </div>
+      <div class="form-group mt-1" id="ngRemarkGroup" style="display:none;">
+        <label class="form-label">หมายเหตุ NG <span style="color:var(--danger);">*</span></label>
+        <select class="form-input" id="ngRemarkSelect" onchange="onNgRemarkChange()">
+          <option value="">-- เลือกหมายเหตุ --</option>
+          <option value="งานปีนเกลียว">งานปีนเกลียว</option>
+          <option value="งานตกในเครื่อง">งานตกในเครื่อง</option>
+          <option value="งานเก่าใต้เครื่อง">งานเก่าใต้เครื่อง</option>
+          <option value="งานทดสอบ">งานทดสอบ</option>
+          <option value="อื่นๆ">อื่นๆ (ระบุ)</option>
+        </select>
+        <input type="text" class="form-input mt-1" id="ngRemarkOther" placeholder="ระบุรายละเอียด..." style="display:none;">
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <button class="btn btn-success btn-full mb-3 hidden" id="submitBtn" onclick="submitEntry()"
+            style="height:56px;font-size:18px;">
+      <i class="bi bi-check-circle"></i> บันทึกยอดผลิต
+    </button>
+
+    <!-- Recent Entries -->
+    <div class="card">
+      <div class="card-title" id="entryCardTitle">
+        <i class="bi bi-clock-history"></i> <span id="entryTitleText">รายการย้อนหลัง 2 วัน</span>
+        <span class="badge badge-count" id="entryCount">0</span>
+      </div>
+      <div id="adminEditFilter" class="hidden" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+        <input type="date" class="date-input" id="editDateFrom" onchange="editRangeManual = true">
+        <input type="date" class="date-input" id="editDateTo" onchange="editRangeManual = true">
+        <button class="btn btn-outline btn-sm" onclick="loadEntryList()"><i class="bi bi-search"></i> ค้นหา</button>
+        <span class="text-xs text-muted">* Admin แก้ไขได้ทุกคนและทุกวันที่</span>
+      </div>
+      <div id="todayEntries">
+        <p class="text-center text-muted text-sm">ยังไม่มีรายการ</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="modal-overlay" id="editEntryModal">
+    <div class="modal-content" style="max-width:460px;">
+      <button class="modal-close" onclick="closeEditEntryModal()">&times;</button>
+      <h3 style="margin:0 0 12px;font-weight:700;font-size:18px;"><i class="bi bi-pencil-square"></i> แก้ไขยอด</h3>
+      <div class="form-group">
+        <label class="form-label">FG (pcs)</label>
+        <input type="number" class="form-input" id="editActualQty" step="1" placeholder="กรอกได้ทั้งบวก/ลบ">
+      </div>
+      <div class="form-group">
+        <label class="form-label">NG (pcs)</label>
+        <input type="number" class="form-input" id="editDefectQty" min="0" step="1" oninput="toggleEditNgRemarkGroup()">
+      </div>
+      <div class="form-group mt-2">
+        <label class="form-label">ของเสียแยกตาม Component</label>
+        <div id="editDefectByComponentWrap" class="text-sm text-muted">เลือกรายการเพื่อโหลด Component</div>
+        <div class="text-xs text-muted mt-1">* หากมี Component ระบบจะใช้ค่าสูงสุดเป็น NG รวม</div>
+      </div>
+      <div class="form-group" id="editNgRemarkGroup" style="display:none;">
+        <label class="form-label">หมายเหตุ NG <span style="color:var(--danger);">*</span></label>
+        <select class="form-input" id="editNgRemarkSelect" onchange="onEditNgRemarkChange()">
+          <option value="">-- เลือกหมายเหตุ --</option>
+          <option value="งานปีนเกลียว">งานปีนเกลียว</option>
+          <option value="งานตกในเครื่อง">งานตกในเครื่อง</option>
+          <option value="งานเก่าใต้เครื่อง">งานเก่าใต้เครื่อง</option>
+          <option value="งานทดสอบ">งานทดสอบ</option>
+          <option value="อื่นๆ">อื่นๆ (ระบุ)</option>
+        </select>
+        <input type="text" class="form-input mt-1" id="editNgRemarkOther" placeholder="ระบุรายละเอียด..." style="display:none;">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn btn-primary btn-full" id="confirmEditBtn" onclick="confirmEditEntry()"><i class="bi bi-check2-circle"></i> ยืนยัน</button>
+        <button class="btn btn-outline" onclick="closeEditEntryModal()">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    let selectedMachine = null;
+    let selectedProduct = null;
+    let selectedJobOrderId = '';
+    let selectedTimePeriod = null;
+    let allMachines = [];
+    let currentBOMComponents = [];
+    let currentUser = null;
+    let selectedPlannedQty = 1300;
+    let editTargetLogId = '';
+    let selectedWorkDate = '';
+    // Admins can list every entry, so the edit list defaults to just the current work
+    // day — a wider window (it used to be the last 7 days of every machine and every
+    // person) made the first page load pull and render thousands of rows. The range
+    // follows the work date until the admin picks one themselves; wider searches work.
+    let editFiltersReady = false;
+    let editRangeManual = false;
+    let editableEntryMap = {};
+    let editDefectComponents = [];
+    let editDefectComponentDirty = false;
+
+    // Machines + each machine's products + every product's BOM, fetched in one request
+    // so picking a machine and a product needs no further round trips.
+    let masterData = null;
+    const MASTER_CACHE_KEY = 'h1_production_master_v1';
+    const MASTER_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+    // The machine's current product / Job Order are set on the machines page, possibly
+    // from another device. An open page polls the server's master-data version stamp and
+    // reloads the masters when it moves, so a stale localStorage copy never lingers.
+    const MASTER_VERSION_POLL_MS = 60 * 1000;
+    let masterVersionCheckInFlight = false;
+
+    // Product and Job Order are not chosen here: they are whatever the machines page set
+    // for the selected machine, shown read-only (the server enforces the same rule).
+    let jobOrderLoadSeq = 0;
+
+    (function init() {
+      if (!Auth.requirePermission('production')) return;
+      UI.renderTopNav('กรอกยอดผลิต', 'bi-clipboard-data');
+      UI.renderNav('production');
+
+      // Show user's assigned shift from profile
+      const user = Auth.getUser();
+      currentUser = user || {};
+      const shift = user && user.shift ? 'กะ ' + user.shift : '';
+      const hour = new Date().getHours();
+      const hh = String(hour).padStart(2, '0');
+      const period = hh + ':00-' + hh + ':59';
+      document.getElementById('shiftBadge').textContent = shift ? shift + ' (' + period + ')' : period;
+      initSmartWorkDate();
+
+      setupEditFilters(); // must run before the first load: it sets the admin date range
+      loadPageData();
+
+      // If this tab is left open across a work-day rollover (no reload), pick up the
+      // date change on its own instead of silently staying on yesterday's date.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          refreshWorkDateIfStale();
+          checkMasterVersion();
+        }
+      });
+      setInterval(refreshWorkDateIfStale, 5 * 60 * 1000);
+      // checkMasterVersion skips itself while the tab is hidden, so a phone left in a
+      // pocket costs nothing; it catches up on the visibilitychange above.
+      setInterval(checkMasterVersion, MASTER_VERSION_POLL_MS);
+    })();
+
+    function getWorkDateStorageKey() {
+      const uid = (currentUser && (currentUser.employeeId || currentUser.id || currentUser.username)) || 'anonymous';
+      return 'h1_production_workdate_' + uid;
+    }
+
+    function toIsoDateLocal(d) {
+      const date = new Date(d);
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function getAutoWorkDate() {
+      const now = new Date();
+      const d = new Date(now.getTime());
+      // Factory work date baseline: before 08:00 counts as previous day
+      if (d.getHours() < 8) d.setDate(d.getDate() - 1);
+      // Smart assist: night-shift users often close late report after 08:00
+      const userShift = String((currentUser && currentUser.shift) || '').toUpperCase();
+      if (userShift === 'B' && d.getHours() >= 8 && d.getHours() < 12) {
+        d.setDate(d.getDate() - 1);
+      }
+      return toIsoDateLocal(d);
+    }
+
+    function applyWorkDate(value) {
+      const changed = selectedWorkDate !== value;
+      selectedWorkDate = value;
+      document.getElementById('workDateInput').value = value;
+      document.getElementById('dateDisplay').textContent = UI.formatDate(new Date(value + 'T00:00:00'));
+      if (changed && editFiltersReady && !editRangeManual) {
+        syncEditRangeToWorkDate();
+        loadEntryList();
+      }
+    }
+
+    function initSmartWorkDate() {
+      const autoDate = getAutoWorkDate();
+      let chosen = autoDate;
+      try {
+        const raw = localStorage.getItem(getWorkDateStorageKey());
+        if (raw) {
+          const saved = JSON.parse(raw);
+          const savedDate = String(saved.date || '');
+          const savedAt = Number(saved.updatedAt || 0);
+          const savedAutoDate = String(saved.autoDateAtSave || '');
+          const ageMs = Date.now() - savedAt;
+          // Only reuse a manual override (a saved date that differs from what auto-detection
+          // would have picked at save time) — and only while the auto-detected work date
+          // hasn't moved on since. Without the savedAutoDate check, this used to "stick" to
+          // yesterday's date for a full 24h even after a fresh page load once the work day
+          // rolled over, since almost every daily user reopens the app within 24h.
+          if (/^\d{4}-\d{2}-\d{2}$/.test(savedDate) && ageMs >= 0 && ageMs <= (24 * 60 * 60 * 1000) && savedAutoDate === autoDate) {
+            chosen = savedDate;
+          }
+        }
+      } catch (e) {}
+      applyWorkDate(chosen);
+    }
+
+    // Catches the case where an employee leaves the tab open across a work-day
+    // rollover instead of reloading — re-applies the auto-detected date once it
+    // changes, unless the user had deliberately picked a date other than that
+    // session's auto-detected one (a real manual override, which we leave alone).
+    function refreshWorkDateIfStale() {
+      const autoDate = getAutoWorkDate();
+      let hasActiveOverride = false;
+      try {
+        const raw = localStorage.getItem(getWorkDateStorageKey());
+        if (raw) {
+          const saved = JSON.parse(raw);
+          const savedDate = String(saved.date || '');
+          const savedAutoDate = String(saved.autoDateAtSave || '');
+          // Only an override made during today's auto-detected work day counts —
+          // otherwise a leftover manual pick from a previous day (e.g. yesterday's
+          // night-shift correction) would keep an open tab stuck forever.
+          if (savedDate !== savedAutoDate && savedAutoDate === autoDate) {
+            hasActiveOverride = true;
+          }
+        }
+      } catch (e) {}
+      if (!hasActiveOverride && selectedWorkDate !== autoDate) {
+        applyWorkDate(autoDate);
+      }
+    }
+
+    function onWorkDateChange(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return;
+      applyWorkDate(value);
+      try {
+        localStorage.setItem(getWorkDateStorageKey(), JSON.stringify({
+          date: selectedWorkDate,
+          updatedAt: Date.now(),
+          autoDateAtSave: getAutoWorkDate()
+        }));
+      } catch (e) {}
+    }
+
+    function readMasterCache() {
+      try {
+        const raw = localStorage.getItem(MASTER_CACHE_KEY);
+        if (!raw) return null;
+        const cached = JSON.parse(raw);
+        if (!cached || !Array.isArray(cached.machines) || !cached.machines.length) return null;
+        if (Date.now() - Number(cached.savedAt || 0) > MASTER_CACHE_TTL_MS) return null;
+        return cached;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function writeMasterCache(data) {
+      try {
+        localStorage.setItem(MASTER_CACHE_KEY, JSON.stringify({
+          savedAt: Date.now(),
+          machines: data.machines,
+          machineProducts: data.machineProducts,
+          bom: data.bom,
+          version: data.version || ''
+        }));
+      } catch (e) {}
+    }
+
+    function applyMasterData(data) {
+      masterData = data;
+      allMachines = data.machines || [];
+      renderMachineGrid();
+    }
+
+    function currentEntryFilters() {
+      const filters = {};
+      if (currentUser && currentUser.role === 'admin') {
+        const from = document.getElementById('editDateFrom').value;
+        const to = document.getElementById('editDateTo').value;
+        if (from && to) {
+          filters.dateFrom = from;
+          filters.dateTo = to;
+        }
+      }
+      return filters;
+    }
+
+    // The two loads are deliberately kept apart. The master tables are small and come
+    // back quickly; the entry-list query is the slow one. Bundling them made the machine
+    // grid — the first thing an operator touches — wait for the slower half, so they run
+    // in parallel and the grid appears as soon as its own data lands. The cached copy of
+    // the master tables is painted first, so on a phone that has opened the page before
+    // the grid is tappable before either request returns.
+    function loadPageData() {
+      const cached = readMasterCache();
+      if (cached) applyMasterData(cached);
+
+      loadMasterData();
+      loadEntryList();
+    }
+
+    async function loadMasterData(opts) {
+      const fromWatch = !!(opts && opts.fromWatch);
+      try {
+        const res = await API.get('getProductionFormData', { include: 'masters' });
+        if (res && res.success && Array.isArray(res.machines)) {
+          const previousMachines = allMachines;
+          applyMasterData({
+            machines: res.machines,
+            machineProducts: res.machineProducts || {},
+            bom: res.bom || {},
+            version: res.version || ''
+          });
+          writeMasterCache(masterData);
+          reconcileSelectedMachine(previousMachines);
+          return;
+        }
+      } catch (err) {}
+
+      // A failed background refresh keeps what is on screen; the next poll retries.
+      if (fromWatch) return;
+
+      // Backend not updated yet (or the call failed): fall back to the per-item
+      // endpoints exactly as before, and drop the prefetch so machine/product taps
+      // fetch live data instead of trusting a cached copy we couldn't revalidate.
+      masterData = null;
+      loadMachines();
+    }
+
+    async function checkMasterVersion() {
+      if (masterVersionCheckInFlight || document.visibilityState !== 'visible') return;
+      // No stamp means the per-item fallback (or an older backend): nothing to compare.
+      if (!masterData || !masterData.version) return;
+      masterVersionCheckInFlight = true;
+      try {
+        const res = await API.get('getMasterDataVersion', {}, { timeoutMs: 15000, retries: 0 });
+        if (res && res.success && res.version && res.version !== masterData.version) {
+          await loadMasterData({ fromWatch: true });
+        }
+      } catch (err) {
+        // Offline or slow: try again on the next tick.
+      } finally {
+        masterVersionCheckInFlight = false;
+      }
+    }
+
+    function findMachine(machineId) {
+      return (allMachines || []).find(m => m.machineId === machineId) || null;
+    }
+
+    // Fresh master data arrived (page load after a cached paint, a version bump, or a
+    // submit the server rejected as out of date). The form only mirrors the machine's
+    // settings, so a change is applied straight away.
+    function reconcileSelectedMachine(previousMachines) {
+      if (!selectedMachine) return;
+      const before = (previousMachines || []).find(m => m.machineId === selectedMachine);
+      const after = findMachine(selectedMachine);
+      if (!after) return;
+      const changed = !before ||
+        (before.currentProduct || '') !== (after.currentProduct || '') ||
+        (before.currentJobOrder || '') !== (after.currentJobOrder || '');
+      if (!changed) return;
+
+      if ((after.currentProduct || '') !== (selectedProduct || '')) {
+        selectMachine(after.machineId); // product changed: rebuild the whole form
+      } else {
+        loadMachineJobOrder();
+      }
+      if (before) UI.showToast(describeMachineSettings(after), 'info');
+    }
+
+    function describeMachineSettings(machine) {
+      let text = machine.machineId + ' เปลี่ยนเป็น ';
+      text += machine.currentProduct ? 'สินค้า ' + machine.currentProduct : 'ไม่ระบุสินค้า';
+      if (machine.currentJobOrder) text += ', Job Order ' + machine.currentJobOrder;
+      return text + ' แล้ว';
+    }
+
+    // A failed load used to leave the machine card spinning forever with no explanation
+    // and nothing to press — the operator could only guess whether to keep waiting.
+    function showMachineGridError(detail) {
+      if (allMachines && allMachines.length) return; // something usable is already on screen
+      document.getElementById('machineGrid').innerHTML =
+        '<div class="text-center text-muted text-sm" style="grid-column:1/-1;padding:16px;">' +
+        '<div class="mb-2"><i class="bi bi-wifi-off"></i> โหลดรายการเครื่องจักรไม่สำเร็จ</div>' +
+        (detail ? '<div class="text-xs mb-2">' + escapeHtml(detail) + '</div>' : '') +
+        '<button class="btn btn-outline btn-sm" onclick="retryMasterData()">' +
+        '<i class="bi bi-arrow-clockwise"></i> ลองใหม่</button></div>';
+    }
+
+    function showMachineGridLoading() {
+      if (allMachines && allMachines.length) return;
+      document.getElementById('machineGrid').innerHTML =
+        '<div class="text-center text-muted" style="grid-column:1/-1;padding:20px;">' +
+        '<div class="spinner" style="margin:0 auto;"></div></div>';
+    }
+
+    function retryMasterData() {
+      showMachineGridLoading();
+      loadMasterData();
+    }
+
+    function renderMachineGrid() {
+      const machines = allMachines || [];
+      let html = '';
+      machines.forEach(m => {
+        const disabled = m.status === 'down' ? ' disabled' : '';
+        const statusLabel = m.status === 'maintenance' ? ' (ซ่อม)' : m.status === 'down' ? ' (หยุด)' : '';
+        const productLabel = m.currentProduct ? ' <span style="color:var(--primary);font-weight:700;">' + m.currentProduct + '</span>' : '';
+        html += '<button class="machine-btn status-' + m.status + '" id="machine-' + m.machineId + '"' +
+          disabled + ' onclick="selectMachine(\'' + m.machineId + '\')">' +
+          '<div class="machine-name">' + m.machineName + '</div>' +
+          '<div class="machine-id">' + m.machineId + statusLabel + '</div>' +
+          (productLabel ? '<div class="text-xs mt-1" style="line-height:1.2;">' + productLabel + '</div>' : '') +
+          '</button>';
+      });
+      document.getElementById('machineGrid').innerHTML = html;
+      // Re-rendering after a refresh must not visually drop an in-progress selection.
+      if (selectedMachine) {
+        const btn = document.getElementById('machine-' + selectedMachine);
+        if (btn) btn.classList.add('active');
+      }
+    }
+
+    async function loadMachines() {
+      try {
+        const machines = await API.get('getMachines');
+        if (!Array.isArray(machines)) {
+          showMachineGridError((machines && machines.message) || '');
+          return;
+        }
+        allMachines = machines;
+        renderMachineGrid();
+      } catch (err) {
+        UI.showToast('โหลดเครื่องจักรล้มเหลว', 'error');
+        showMachineGridError('เน็ตช้าหรือเซิร์ฟเวอร์ไม่ตอบกลับ');
+      }
+    }
+
+    async function selectMachine(machineId) {
+      document.querySelectorAll('.machine-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('machine-' + machineId).classList.add('active');
+      selectedMachine = machineId;
+
+      const machine = findMachine(machineId);
+      const currentProduct = machine ? (machine.currentProduct || '') : '';
+      if (!currentProduct) {
+        showMachineNotConfigured();
+        return;
+      }
+
+      let products = masterData && masterData.machineProducts
+        ? masterData.machineProducts[machineId]
+        : null;
+      if (!Array.isArray(products)) {
+        UI.showLoading();
+        try {
+          products = await API.get('getMachineProducts', { machineId });
+        } catch (err) {
+          products = null; // the code alone is enough to record against
+        }
+        UI.hideLoading();
+        if (selectedMachine !== machineId) return; // operator moved on meanwhile
+      }
+      const product = (Array.isArray(products) ? products : []).find(p => p.productCode === currentProduct) ||
+        { productCode: currentProduct, productName: '', defaultQty: 1300 };
+      renderLockedProduct(product);
+      applyProduct(product);
+    }
+
+    function setEntrySectionsVisible(visible) {
+      ['jobOrderSection', 'timePeriodSection', 'qtySection', 'submitBtn'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', !visible);
+      });
+    }
+
+    function showMachineNotConfigured() {
+      selectedProduct = null;
+      selectedJobOrderId = '';
+      jobOrderLoadSeq++; // drop any Job Order lookup still in flight
+      document.getElementById('productList').innerHTML =
+        '<div style="background:var(--danger-light);color:#c5221f;border-radius:var(--radius-sm);padding:12px 14px;font-size:14px;">' +
+        '<i class="bi bi-exclamation-octagon-fill"></i> เครื่องนี้ยังไม่ได้ตั้งสินค้า — ' +
+        'กรุณาแจ้งหัวหน้าให้ตั้งที่เมนูเครื่องจักร จึงจะบันทึกยอดได้</div>';
+      document.getElementById('productSection').classList.remove('hidden');
+      setEntrySectionsVisible(false);
+    }
+
+    function renderLockedProduct(p) {
+      document.getElementById('productList').innerHTML =
+        '<div class="btn btn-outline btn-full active" style="justify-content:flex-start;text-align:left;padding:12px 16px;cursor:default;">' +
+        '<div style="flex:1;"><strong>' + escapeHtml(p.productCode) + '</strong>' +
+        ' <span class="badge badge-info" style="font-size:10px;padding:1px 6px;margin-left:4px;">กำลังผลิต</span>' +
+        (p.productName ? '<br><span class="text-sm text-muted">' + escapeHtml(p.productName) + '</span>' : '') +
+        '</div><i class="bi bi-lock-fill text-muted"></i></div>';
+      document.getElementById('productSection').classList.remove('hidden');
+    }
+
+    function applyProduct(p) {
+      selectedProduct = p.productCode;
+      selectedPlannedQty = Number(p.defaultQty) || 1300;
+      loadDefectComponents(p.productCode);
+      loadMachineJobOrder();
+
+      setEntrySectionsVisible(true);
+      if (!selectedTimePeriod) {
+        autoSelectTimePeriod();
+      }
+      document.getElementById('actualQty').focus();
+    }
+
+    function renderJobOrderDisplay(html) {
+      document.getElementById('jobOrderDisplay').innerHTML = html;
+    }
+
+    function jobOrderWarning(text) {
+      return '<div style="background:var(--warning-light);color:#b06000;border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;">' +
+        '<i class="bi bi-exclamation-triangle-fill"></i> ' + text + '</div>';
+    }
+
+    // Shows the machine's Job Order read-only. The configured id is used right away (so a
+    // quick submit carries it); the lookup then confirms the order is still open, and
+    // falls back to "no Job Order" when it isn't — the same rule the server applies.
+    async function loadMachineJobOrder() {
+      const seq = ++jobOrderLoadSeq;
+      const machine = findMachine(selectedMachine);
+      if (!machine || !selectedProduct) return;
+      const configured = machine.currentProduct === selectedProduct ? (machine.currentJobOrder || '') : '';
+      selectedJobOrderId = configured;
+
+      if (!configured) {
+        renderJobOrderDisplay(jobOrderWarning('เครื่องนี้ยังไม่ได้ตั้ง Job Order — บันทึกได้โดยไม่ระบุ Job Order (แจ้งหัวหน้าตั้งที่เมนูเครื่องจักร)'));
+        return;
+      }
+
+      renderJobOrderDisplay('<div class="form-input text-muted" style="display:flex;align-items:center;gap:8px;">' +
+        '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0;"></div> ' + escapeHtml(configured) + '</div>');
+
+      let options = null;
+      try {
+        options = await API.get('getJobOrderOptions', {
+          filters: JSON.stringify({ machineId: machine.machineId, productCode: selectedProduct })
+        }, { retries: 2, timeoutMs: 15000 });
+      } catch (err) {
+        options = null;
+      }
+      if (seq !== jobOrderLoadSeq) return; // a newer machine / settings change won
+
+      const order = Array.isArray(options) ? options.find(o => o.jobOrderId === configured) : null;
+      if (Array.isArray(options) && !order) {
+        selectedJobOrderId = '';
+        renderJobOrderDisplay(jobOrderWarning('Job Order ' + escapeHtml(configured) +
+          ' ปิดแล้ว/ใช้ไม่ได้ — บันทึกได้โดยไม่ระบุ Job Order (แจ้งหัวหน้าเปลี่ยนที่เมนูเครื่องจักร)'));
+        return;
+      }
+      const detail = order
+        ? escapeHtml(order.jobOrderId + ', ' + (order.productCode || '-') + ', ' + UI.formatNumber(order.plannedQty))
+        : escapeHtml(configured) + ' <span class="text-xs text-muted">(ตรวจสถานะไม่ได้ — เน็ตช้า)</span>';
+      renderJobOrderDisplay('<div class="form-input" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--gray-light);">' +
+        '<span>' + detail + '</span><i class="bi bi-lock-fill text-muted"></i></div>' +
+        '<div id="jobOrderProgress" class="mt-2"></div>');
+      loadJobOrderProgress(configured, seq);
+    }
+
+    // Planned / produced / remaining for the machine's Job Order, so the operator can
+    // see how much is left. Reloaded after every successful submit.
+    async function loadJobOrderProgress(jobOrderId, seq) {
+      const box = () => document.getElementById('jobOrderProgress');
+      if (!box()) return;
+      box().innerHTML = '<div class="text-xs text-muted">กำลังโหลดยอดคงเหลือ...</div>';
+      let res = null;
+      try {
+        res = await API.get('getJobOrderProgress', { jobOrderId }, { retries: 2, timeoutMs: 20000 });
+      } catch (err) {
+        res = null;
+      }
+      if (seq !== jobOrderLoadSeq || !box()) return; // machine / settings changed meanwhile
+      if (!res || !res.success) {
+        box().innerHTML = '<div class="text-xs text-muted">โหลดยอดคงเหลือไม่สำเร็จ — ' +
+          '<a href="#" onclick="loadJobOrderProgress(\'' + escapeHtml(jobOrderId) + '\', jobOrderLoadSeq);return false;">ลองใหม่</a></div>';
+        return;
+      }
+      const planned = Number(res.plannedQty) || 0;
+      const actual = Number(res.actualQty) || 0;
+      const remaining = Number(res.remainingQty) || 0;
+      const over = Math.max(0, actual - planned);
+      const stage = jobOrderStage(planned, remaining);
+      const percent = Math.max(0, Math.min(100, Math.round(Number(res.completionRate) || 0)));
+      const barColor = stage === 'done' ? 'var(--danger)' : stage === 'near' ? '#f59e0b' : 'var(--primary)';
+      const cell = (label, value, color) =>
+        '<div style="flex:1;min-width:0;text-align:center;">' +
+        '<div class="text-xs text-muted">' + label + '</div>' +
+        '<div style="font-weight:800;font-size:1.15rem;' + (color ? 'color:' + color + ';' : '') + '">' + UI.formatNumber(value) + '</div></div>';
+      let notice = '';
+      if (stage === 'done') {
+        // Recording stays allowed (over-runs happen); the operator is just told plainly.
+        notice = '<div class="mt-2" style="background:var(--danger-light);color:#c5221f;border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;font-weight:600;">' +
+          '<i class="bi bi-exclamation-octagon-fill"></i> ครบตามแผนแล้ว — แจ้งหัวหน้าเปลี่ยน Job Order' +
+          (over > 0 ? '<br><span style="font-weight:800;">ผลิตเกินแผน ' + UI.formatNumber(over) + ' ชิ้น</span>' : '') +
+          '<div class="text-xs" style="font-weight:400;margin-top:2px;">ยังบันทึกยอดได้ ยอดจะนับเข้า Job Order นี้</div></div>';
+      } else if (stage === 'near') {
+        notice = '<div class="mt-2" style="background:var(--warning-light);color:#b06000;border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;font-weight:600;">' +
+          '<i class="bi bi-exclamation-triangle-fill"></i> ใกล้ครบ — เหลือ ' + UI.formatNumber(remaining) + ' ชิ้น</div>';
+      }
+      box().innerHTML =
+        '<div style="display:flex;gap:8px;">' +
+        cell('แผน', planned, '') +
+        cell('ผลิตแล้ว (FG)', actual, 'var(--success)') +
+        (over > 0
+          ? cell('เกินแผน', over, 'var(--danger)')
+          : cell('คงเหลือ', remaining, stage === 'done' ? 'var(--danger)' : stage === 'near' ? '#b06000' : 'var(--primary)')) +
+        '</div>' +
+        '<div class="progress-bar-container mt-2" style="height:8px;background:var(--gray-light);border-radius:4px;overflow:hidden;">' +
+        '<div style="height:100%;width:' + percent + '%;background:' + barColor + ';"></div></div>' +
+        '<div class="text-xs text-muted mt-1" style="text-align:right;">' + Math.round(Number(res.completionRate) || 0) + '%</div>' +
+        notice;
+    }
+
+    // 'done' when nothing is left, 'near' when at most 10% of the plan remains.
+    function jobOrderStage(planned, remaining) {
+      if (planned > 0 && remaining <= 0) return 'done';
+      if (planned > 0 && remaining <= planned * 0.1) return 'near';
+      return 'normal';
+    }
+
+    // BOM for every product ships with the page bootstrap, so this is normally a local
+    // lookup; the request is only made when that prefetch is unavailable.
+    async function fetchProductBOM(productCode) {
+      const prefetched = masterData && masterData.bom ? masterData.bom[productCode] : null;
+      if (Array.isArray(prefetched)) return prefetched;
+      return API.get('getProductBOM', { productCode });
+    }
+
+    async function loadDefectComponents(productCode) {
+      currentBOMComponents = [];
+      const wrap = document.getElementById('defectByComponentWrap');
+      if (!productCode) {
+        wrap.innerHTML = '<span class="text-muted">ไม่พบสินค้า</span>';
+        return;
+      }
+      try {
+        const bom = await fetchProductBOM(productCode);
+        currentBOMComponents = Array.isArray(bom) ? bom : [];
+        renderDefectComponentInputs();
+      } catch (err) {
+        wrap.innerHTML = '<span class="text-danger">โหลด BOM ไม่สำเร็จ</span>';
+      }
+    }
+
+    function renderDefectComponentInputs() {
+      const wrap = document.getElementById('defectByComponentWrap');
+      if (!currentBOMComponents || currentBOMComponents.length === 0) {
+        wrap.innerHTML = '<span class="text-muted">ไม่พบ Component ใน BOM</span>';
+        document.getElementById('defectQty').value = 0;
+        return;
+      }
+
+      let html = '<div style="display:grid;grid-template-columns:1fr 90px;gap:6px;">';
+      currentBOMComponents.forEach(c => {
+        html += '<div class="text-sm" style="align-self:center;">' +
+          '<strong>' + c.componentCode + '</strong> (' + c.componentName + ')</div>' +
+          '<input type="number" min="0" step="1" value="0" class="form-input text-center defect-comp-input" ' +
+          'data-code="' + c.componentCode + '" data-name="' + c.componentName + '" ' +
+          'oninput="onDefectComponentChange()" inputmode="numeric">';
+      });
+      html += '</div>';
+      wrap.innerHTML = html;
+      onDefectComponentChange();
+    }
+
+    function onDefectComponentChange() {
+      const inputs = document.querySelectorAll('.defect-comp-input');
+      let total = 0;
+      inputs.forEach(inp => {
+        const qty = Number(inp.value) || 0;
+        if (qty > total) total = qty;
+      });
+      document.getElementById('defectQty').value = total;
+      const actualEl = document.getElementById('actualQty');
+      if (total > 0 && Number(actualEl.value) >= 0) {
+        actualEl.value = 0;
+      }
+      toggleNgRemarkGroup();
+    }
+
+    function toggleNgRemarkGroup() {
+      const ng = Number(document.getElementById('defectQty').value) || 0;
+      const grp = document.getElementById('ngRemarkGroup');
+      grp.style.display = ng > 0 ? '' : 'none';
+      if (ng === 0) {
+        document.getElementById('ngRemarkSelect').value = '';
+        document.getElementById('ngRemarkOther').value = '';
+        document.getElementById('ngRemarkOther').style.display = 'none';
+      }
+    }
+
+    function onNgRemarkChange() {
+      const sel = document.getElementById('ngRemarkSelect').value;
+      document.getElementById('ngRemarkOther').style.display = sel === 'อื่นๆ' ? '' : 'none';
+      if (sel !== 'อื่นๆ') document.getElementById('ngRemarkOther').value = '';
+    }
+
+    function getNgRemark() {
+      const sel = document.getElementById('ngRemarkSelect').value;
+      if (sel === 'อื่นๆ') {
+        const other = document.getElementById('ngRemarkOther').value.trim();
+        return other ? 'อื่นๆ: ' + other : '';
+      }
+      return sel;
+    }
+
+    function onEditNgRemarkChange() {
+      const sel = document.getElementById('editNgRemarkSelect').value;
+      document.getElementById('editNgRemarkOther').style.display = sel === 'อื่นๆ' ? '' : 'none';
+      if (sel !== 'อื่นๆ') document.getElementById('editNgRemarkOther').value = '';
+    }
+
+    function toggleEditNgRemarkGroup() {
+      const ng = Number(document.getElementById('editDefectQty').value) || 0;
+      const grp = document.getElementById('editNgRemarkGroup');
+      grp.style.display = ng > 0 ? '' : 'none';
+    }
+
+    function getEditNgRemark() {
+      const sel = document.getElementById('editNgRemarkSelect').value;
+      if (sel === 'อื่นๆ') {
+        const other = document.getElementById('editNgRemarkOther').value.trim();
+        return other ? 'อื่นๆ: ' + other : '';
+      }
+      return sel;
+    }
+
+    function setNgRemarkFromValue(selectId, otherId, value) {
+      const sel = document.getElementById(selectId);
+      const otherInput = document.getElementById(otherId);
+      const presets = ['งานปีนเกลียว', 'งานตกในเครื่อง', 'งานเก่าใต้เครื่อง', 'งานทดสอบ'];
+      if (!value || presets.includes(value)) {
+        sel.value = value || '';
+        otherInput.style.display = 'none';
+        otherInput.value = '';
+      } else {
+        sel.value = 'อื่นๆ';
+        otherInput.style.display = '';
+        otherInput.value = value.replace(/^อื่นๆ:\s*/, '');
+      }
+    }
+
+    function buildHourlyGrid() {
+      // Generate 24 hourly slots starting from 08:00 (factory order)
+      const startHours = [8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0,1,2,3,4,5,6,7];
+      let html = '';
+      startHours.forEach(h => {
+        const hh = String(h).padStart(2, '0');
+        const endMin = '59';
+        const period = hh + ':00-' + hh + ':' + endMin;
+        const icon = (h >= 8 && h < 17) ? 'bi-sun' : (h >= 17 && h < 20) ? 'bi-sun-fill' : 'bi-moon';
+        html += '<button class="btn btn-outline time-period-btn" onclick="selectTimePeriod(this,\'' + period + '\')" ' +
+          'data-period="' + period + '" style="padding:8px 4px;font-size:13px;">' +
+          '<i class="bi ' + icon + '" style="font-size:10px;"></i> ' + hh + ':00' +
+          '</button>';
+      });
+      document.getElementById('hourlyGrid').innerHTML = html;
+    }
+    buildHourlyGrid();
+
+    function autoSelectTimePeriod() {
+      const hour = new Date().getHours();
+      const hh = String(hour).padStart(2, '0');
+      const period = hh + ':00-' + hh + ':59';
+      const btn = document.querySelector('.time-period-btn[data-period="' + period + '"]');
+      if (btn) selectTimePeriod(btn, period);
+    }
+
+    function selectTimePeriod(el, period) {
+      document.querySelectorAll('.time-period-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      selectedTimePeriod = period;
+    }
+
+    function generateClientRequestId() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return 'req-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    }
+
+    let submittingEntry = false;
+    // The id for the entry currently being saved. It deliberately survives a failed
+    // attempt so that pressing บันทึก again after a timeout re-sends the *same* id and
+    // the server can recognise the retry — the request may well have reached the sheet
+    // even though the response never came back. It is regenerated as soon as the form
+    // contents change (a corrected number is a new entry, not a retry) and cleared once
+    // a save is confirmed.
+    let pendingSubmit = null;
+
+    function clientRequestIdFor(payloadKey) {
+      if (!pendingSubmit || pendingSubmit.key !== payloadKey) {
+        pendingSubmit = { key: payloadKey, requestId: generateClientRequestId() };
+      }
+      return pendingSubmit.requestId;
+    }
+
+    async function submitEntry() {
+      if (submittingEntry) return; // guard against double-click / double-fire
+      const actualQty = document.getElementById('actualQty').value;
+      if (!selectedMachine) { UI.showToast('กรุณาเลือกเครื่องจักร', 'warning'); return; }
+      if (!selectedProduct) { UI.showToast('กรุณาเลือกผลิตภัณฑ์', 'warning'); return; }
+      if (!selectedTimePeriod) { UI.showToast('กรุณาเลือกช่วงเวลา', 'warning'); return; }
+      if (actualQty === '' || isNaN(Number(actualQty))) { UI.showToast('กรุณากรอกจำนวน', 'warning'); return; }
+      const defectQtyVal = Number(document.getElementById('defectQty').value) || 0;
+      if (defectQtyVal > 0 && !getNgRemark()) { UI.showToast('กรุณาเลือกหมายเหตุ NG', 'warning'); return; }
+      if (!confirm('ยืนยันบันทึกยอดผลิตใช่หรือไม่?')) return;
+
+      const data = {
+        machineId: selectedMachine,
+        productCode: selectedProduct,
+        jobOrderId: selectedJobOrderId || '',
+        workDate: selectedWorkDate || getAutoWorkDate(),
+        timePeriod: selectedTimePeriod,
+        plannedQty: selectedPlannedQty || 1300,
+        actualQty: Number(actualQty),
+        defectQty: defectQtyVal,
+        defectByComponent: collectDefectByComponent(),
+        remark: defectQtyVal > 0 ? getNgRemark() : ''
+      };
+
+      data.clientRequestId = clientRequestIdFor(JSON.stringify(data));
+
+      submittingEntry = true;
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:3px;"></div> กำลังบันทึกยอด...';
+
+      try {
+        const result = await API.post('submitProduction', { data });
+        if (result.success) {
+          pendingSubmit = null;
+          UI.showToast(result.message, result.duplicate ? 'info' : 'success');
+          document.getElementById('actualQty').value = '1300';
+          document.getElementById('defectQty').value = '0';
+          document.getElementById('ngRemarkSelect').value = '';
+          document.getElementById('ngRemarkOther').value = '';
+          document.getElementById('ngRemarkOther').style.display = 'none';
+          document.getElementById('ngRemarkGroup').style.display = 'none';
+          renderDefectComponentInputs();
+          loadEntryList();
+          if (selectedJobOrderId) loadJobOrderProgress(selectedJobOrderId, jobOrderLoadSeq);
+        } else {
+          UI.showToast(result.message, 'error');
+          // The machine was re-configured since this form loaded: pull the new
+          // settings so the locked product / Job Order on screen catch up.
+          if (result.settingsChanged) loadMasterData({ fromWatch: true });
+        }
+      } catch (err) {
+        // The request may still have reached the sheet. Say so rather than implying
+        // nothing was saved — and pressing บันทึก again is safe, since the retry
+        // carries the same clientRequestId.
+        UI.showToast('เน็ตช้า/ไม่ตอบกลับ — กดบันทึกซ้ำได้ ระบบจะไม่บันทึกเบิ้ล', 'warning');
+        loadEntryList();
+      }
+
+      submittingEntry = false;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle"></i> บันทึกยอดผลิต';
+    }
+
+    function collectDefectByComponent() {
+      const map = {};
+      const inputs = document.querySelectorAll('.defect-comp-input');
+      inputs.forEach(inp => {
+        const qty = Number(inp.value) || 0;
+        if (qty > 0) {
+          map[inp.dataset.code] = {
+            componentName: inp.dataset.name || '',
+            qty: qty
+          };
+        }
+      });
+      return map;
+    }
+
+    function syncEditRangeToWorkDate() {
+      const day = selectedWorkDate || getAutoWorkDate();
+      document.getElementById('editDateFrom').value = day;
+      document.getElementById('editDateTo').value = day;
+    }
+
+    function setupEditFilters() {
+      if (!currentUser || currentUser.role !== 'admin') return;
+      document.getElementById('adminEditFilter').classList.remove('hidden');
+      document.querySelector('#adminEditFilter').style.display = 'flex';
+      document.getElementById('entryTitleText').textContent = 'รายการสำหรับแก้ไข (ทุกวันที่)';
+      syncEditRangeToWorkDate();
+      editFiltersReady = true;
+    }
+
+    async function loadEntryList() {
+      const wrap = document.getElementById('todayEntries');
+      wrap.innerHTML = '<div class="text-center text-muted text-sm" style="padding:14px;">' +
+        '<div class="spinner" style="margin:0 auto 6px;"></div>กำลังโหลดรายการ...</div>';
+      try {
+        const entries = await API.get('getEditableProductionEntries', {
+          filters: JSON.stringify(currentEntryFilters())
+        });
+        renderEntryList(Array.isArray(entries) ? entries : []);
+      } catch (err) {
+        wrap.innerHTML = '<p class="text-center text-muted text-sm">โหลดรายการไม่สำเร็จ</p>';
+      }
+    }
+
+    function renderEntryList(entries) {
+      document.getElementById('entryCount').textContent = entries.length;
+      editableEntryMap = {};
+      if (!entries.length) {
+        document.getElementById('todayEntries').innerHTML = '<p class="text-center text-muted text-sm">ยังไม่มีรายการ</p>';
+        return;
+      }
+      let html = '';
+      entries.forEach(e => {
+        editableEntryMap[e.LogID] = e;
+        const cancelled = e.Status === 'cancelled' ? ' cancelled' : '';
+        const time = e.Timestamp ? e.Timestamp.split(' ')[1] || '' : '';
+        const date = e.Date || '';
+        const shiftLabel = e.Shift ? ' [กะ ' + e.Shift + ']' : '';
+        const periodLabel = e.TimePeriod ? ' <span class="text-muted text-xs">(' + e.TimePeriod + ')</span>' : '';
+        const actionBtns = (e.CanEdit && e.Status !== 'cancelled')
+          ? '<div style="display:flex;gap:6px;justify-content:flex-end;">' +
+            '<button class="btn btn-outline btn-sm" onclick="openEditEntry(\'' + String(e.LogID || '').replace(/'/g, "\\'") + '\')" style="padding:4px 10px;">แก้ไข</button>' +
+            '<button class="btn btn-outline btn-sm" onclick="requestDeleteEntry(\'' + e.LogID + '\')" style="padding:4px 10px;color:#ea4335;border-color:#ea4335;"><i class="bi bi-trash"></i></button>' +
+            '</div>'
+          : '';
+        html += '<div class="entry-card' + cancelled + '">' +
+          '<div class="entry-header"><strong>' + (e.MachineID || '') + shiftLabel + '</strong>' +
+          '<span class="text-muted text-sm">' + date + ' ' + time + periodLabel + '</span></div>' +
+          '<div class="entry-detail">' +
+          '<span>' + (e.ProductCode || '') + '</span>' +
+          '<span><strong>' + UI.formatNumber(e.ActualQty) + '</strong> / ' + UI.formatNumber(e.PlannedQty) + ' pcs' +
+          (e.DefectQty > 0 ? ' <span class="text-danger">(NG: ' + e.DefectQty + ')</span>' : '') +
+          '</span></div>' +
+          (e.JobOrderID ? '<div class="text-xs mt-1" style="color:var(--primary);"><i class="bi bi-card-checklist"></i> ' + escapeHtml(e.JobOrderID) + '</div>' : '') +
+          (actionBtns ? '<div style="margin-top:8px;">' + actionBtns + '</div>' : '') +
+          (e.Status === 'cancelled' ? '<span class="text-danger text-xs">ยกเลิก</span>' : '') +
+          '</div>';
+      });
+      document.getElementById('todayEntries').innerHTML = html;
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function parseDefectDetails(raw) {
+      if (!raw) return {};
+      if (typeof raw === 'object') return raw;
+      try {
+        const parsed = JSON.parse(String(raw));
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    async function openEditEntry(logId) {
+      const entry = editableEntryMap[logId];
+      if (!entry) { UI.showToast('ไม่พบรายการที่ต้องการแก้ไข', 'error'); return; }
+      editTargetLogId = logId;
+      editDefectComponents = [];
+      editDefectComponentDirty = false;
+      document.getElementById('editActualQty').value = Number(entry.ActualQty || 0);
+      document.getElementById('editDefectQty').value = Number(entry.DefectQty || 0);
+      document.getElementById('editDefectQty').readOnly = false;
+      const editNg = Number(entry.DefectQty || 0);
+      document.getElementById('editNgRemarkGroup').style.display = editNg > 0 ? '' : 'none';
+      setNgRemarkFromValue('editNgRemarkSelect', 'editNgRemarkOther', entry.Remark || '');
+      document.getElementById('editDefectByComponentWrap').innerHTML = '<span class="text-muted">กำลังโหลด Component...</span>';
+      document.getElementById('editEntryModal').classList.add('show');
+      await loadEditDefectComponents(entry.ProductCode, entry.DefectDetails, Number(entry.DefectQty || 0));
+    }
+
+    async function loadEditDefectComponents(productCode, defectDetails, fallbackDefectQty) {
+      const wrap = document.getElementById('editDefectByComponentWrap');
+      if (!productCode) {
+        wrap.innerHTML = '<span class="text-muted">ไม่พบสินค้า</span>';
+        return;
+      }
+      try {
+        const bom = await fetchProductBOM(productCode);
+        editDefectComponents = Array.isArray(bom) ? bom : [];
+        renderEditDefectComponentInputs(parseDefectDetails(defectDetails), fallbackDefectQty);
+      } catch (err) {
+        editDefectComponents = [];
+        document.getElementById('editDefectQty').readOnly = false;
+        wrap.innerHTML = '<span class="text-danger">โหลด BOM ไม่สำเร็จ สามารถแก้ NG รวมได้</span>';
+      }
+    }
+
+    function renderEditDefectComponentInputs(defectDetails, fallbackDefectQty) {
+      const wrap = document.getElementById('editDefectByComponentWrap');
+      editDefectComponentDirty = false;
+      if (!editDefectComponents || editDefectComponents.length === 0) {
+        document.getElementById('editDefectQty').readOnly = false;
+        wrap.innerHTML = '<span class="text-muted">ไม่พบ Component ใน BOM สามารถแก้ NG รวมได้</span>';
+        return;
+      }
+
+      document.getElementById('editDefectQty').readOnly = true;
+      let html = '<div style="display:grid;grid-template-columns:1fr 90px;gap:6px;">';
+      editDefectComponents.forEach(c => {
+        const detail = defectDetails[c.componentCode] || {};
+        const qty = Number(detail.qty || 0);
+        html += '<div class="text-sm" style="align-self:center;">' +
+          '<strong>' + escapeHtml(c.componentCode) + '</strong> (' + escapeHtml(c.componentName) + ')</div>' +
+          '<input type="number" min="0" step="1" value="' + qty + '" class="form-input text-center edit-defect-comp-input" ' +
+          'data-code="' + escapeHtml(c.componentCode) + '" data-name="' + escapeHtml(c.componentName) + '" ' +
+          'oninput="onEditDefectComponentChange()" inputmode="numeric">';
+      });
+      html += '</div>';
+      if (!Object.keys(defectDetails || {}).length && fallbackDefectQty > 0) {
+        html += '<div class="text-xs text-muted mt-1">รายการเดิมมี NG รวม ' + UI.formatNumber(fallbackDefectQty) + ' pcs หากแก้ช่อง Component ระบบจะคำนวณ NG รวมใหม่</div>';
+      }
+      wrap.innerHTML = html;
+      if (Object.keys(defectDetails || {}).length) {
+        updateEditDefectTotalFromComponents();
+      } else {
+        document.getElementById('editDefectQty').value = Number(fallbackDefectQty || 0);
+      }
+    }
+
+    function updateEditDefectTotalFromComponents() {
+      const inputs = document.querySelectorAll('.edit-defect-comp-input');
+      let total = 0;
+      inputs.forEach(inp => {
+        const qty = Number(inp.value) || 0;
+        if (qty > total) total = qty;
+      });
+      document.getElementById('editDefectQty').value = total;
+      const actualEl = document.getElementById('editActualQty');
+      if (total > 0 && Number(actualEl.value) >= 0) {
+        actualEl.value = 0;
+      }
+      toggleEditNgRemarkGroup();
+    }
+
+    function onEditDefectComponentChange() {
+      editDefectComponentDirty = true;
+      updateEditDefectTotalFromComponents();
+    }
+
+    function collectEditDefectByComponent() {
+      const map = {};
+      const inputs = document.querySelectorAll('.edit-defect-comp-input');
+      inputs.forEach(inp => {
+        const qty = Number(inp.value) || 0;
+        if (qty > 0) {
+          map[inp.dataset.code] = {
+            componentName: inp.dataset.name || '',
+            qty: qty
+          };
+        }
+      });
+      return map;
+    }
+
+    function closeEditEntryModal() {
+      editTargetLogId = '';
+      editDefectComponents = [];
+      editDefectComponentDirty = false;
+      document.getElementById('editEntryModal').classList.remove('show');
+    }
+
+    async function confirmEditEntry() {
+      if (!editTargetLogId) return;
+      const fg = Number(document.getElementById('editActualQty').value);
+      const ng = Number(document.getElementById('editDefectQty').value);
+      if (isNaN(fg) || isNaN(ng) || ng < 0) { UI.showToast('กรุณากรอก FG/NG ให้ถูกต้อง', 'warning'); return; }
+      if (ng > 0 && !getEditNgRemark()) { UI.showToast('กรุณาเลือกหมายเหตุ NG', 'warning'); return; }
+      if (!confirm('ยืนยันการแก้ไขยอดใช่หรือไม่?')) return;
+
+      const updates = {
+        actualQty: fg,
+        defectQty: ng,
+        remark: ng > 0 ? getEditNgRemark() : ''
+      };
+      if (editDefectComponentDirty) {
+        updates.defectByComponent = collectEditDefectByComponent();
+      }
+
+      const btn = document.getElementById('confirmEditBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:3px;"></div> กำลังบันทึก...';
+      try {
+        const result = await API.post('updateProductionEntry', {
+          logId: editTargetLogId,
+          updates: updates
+        });
+        if (result && result.success) {
+          UI.showToast(result.message || 'แก้ไขสำเร็จ', 'success');
+          closeEditEntryModal();
+          loadEntryList();
+        } else {
+          UI.showToast((result && result.message) || 'แก้ไขไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        UI.showToast('แก้ไขไม่สำเร็จ', 'error');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check2-circle"></i> ยืนยัน';
+    }
+
+    async function requestDeleteEntry(logId) {
+      if (!confirm('ยืนยันลบยอดรายการนี้ใช่หรือไม่?')) return;
+      const reason = prompt('เหตุผลที่ลบยอด (บังคับ)');
+      if (reason === null) return;
+      if (!String(reason).trim()) { UI.showToast('กรุณากรอกเหตุผลการลบ', 'warning'); return; }
+      try {
+        const result = await API.post('requestDeleteProduction', {
+          logId: logId,
+          reason: String(reason).trim()
+        });
+        if (result && result.success) {
+          UI.showToast(result.message || 'ลบยอดสำเร็จ', 'success');
+          loadEntryList();
+        } else {
+          UI.showToast((result && result.message) || 'ลบยอดไม่สำเร็จ', 'error');
+        }
+      } catch (err) {
+        UI.showToast('ลบยอดไม่สำเร็จ', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

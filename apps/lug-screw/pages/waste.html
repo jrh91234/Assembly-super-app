@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>การทิ้งขยะ - H1 Lug&Screw</title>
+  <link rel="icon" href="https://img.icons8.com/color/48/factory.png">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container mt-3">
+    <!-- Header -->
+    <div class="d-flex justify-between items-center mb-2">
+      <span class="badge badge-info" id="dateBadge"></span>
+    </div>
+
+    <!-- Waste Entry Form -->
+    <div class="card">
+      <div class="card-title"><i class="bi bi-trash3"></i> บันทึกการทิ้งขยะ</div>
+
+      <!-- Waste Type Dropdown -->
+      <div class="form-group">
+        <label class="form-label">ชนิดขยะ</label>
+        <div class="d-flex gap-2">
+          <select class="form-input" id="wasteType" style="flex:1;">
+            <option value="">-- เลือกชนิดขยะ --</option>
+          </select>
+          <button class="btn btn-outline" onclick="toggleManageTypes()" title="จัดการชนิดขยะ"
+                  style="min-width:44px;padding:0 14px;flex-shrink:0;">
+            <i class="bi bi-gear"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Weight -->
+      <div class="form-group">
+        <label class="form-label">น้ำหนัก</label>
+        <div class="d-flex items-center gap-2">
+          <input type="number" class="form-input" id="weightKg"
+                 placeholder="เช่น 10.5" step="0.1" min="0.1" style="flex:1;"
+                 inputmode="decimal">
+          <span style="font-weight:600;white-space:nowrap;color:var(--gray);">กก.</span>
+        </div>
+      </div>
+
+      <!-- Recorder Name (readonly, from logged-in user) -->
+      <div class="form-group">
+        <label class="form-label">ผู้บันทึก</label>
+        <input type="text" class="form-input" id="recorderName" readonly
+               style="background:#f0f2f5;color:var(--gray);cursor:default;">
+      </div>
+
+      <!-- Date & Time (auto current, editable) -->
+      <div class="form-group">
+        <label class="form-label">วันที่และเวลา</label>
+        <div class="d-flex gap-2">
+          <input type="datetime-local" class="form-input" id="recordedAt" style="flex:1;">
+          <button class="btn btn-outline" onclick="setCurrentDateTime()" title="รีเซ็ตเป็นเวลาปัจจุบัน"
+                  style="min-width:44px;padding:0 14px;flex-shrink:0;">
+            <i class="bi bi-clock"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Remark -->
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ <span class="text-muted text-sm">(ไม่บังคับ)</span></label>
+        <input type="text" class="form-input" id="wasteRemark" placeholder="ระบุหมายเหตุ (ถ้ามี)">
+      </div>
+
+      <button class="btn btn-success btn-full mt-2" id="wasteSubmitBtn" onclick="submitWaste()"
+              style="height:52px;font-size:18px;">
+        <i class="bi bi-check-circle"></i> บันทึก
+      </button>
+    </div>
+
+    <!-- Manage Waste Types (inline panel, hidden by default) -->
+    <div class="card hidden" id="manageTypesSection">
+      <div class="card-title" style="display:flex;align-items:center;">
+        <i class="bi bi-gear"></i>&nbsp;จัดการชนิดขยะ
+        <button class="btn btn-outline btn-sm" onclick="toggleManageTypes()"
+                style="margin-left:auto;padding:4px 14px;">
+          <i class="bi bi-x"></i> ปิด
+        </button>
+      </div>
+
+      <!-- Add new type -->
+      <div class="d-flex gap-2 mb-3">
+        <input type="text" class="form-input" id="newTypeName"
+               placeholder="ชื่อชนิดขยะใหม่" style="flex:1;"
+               onkeydown="if(event.key==='Enter')addWasteType()">
+        <button class="btn btn-primary" onclick="addWasteType()" style="min-width:80px;">
+          <i class="bi bi-plus-lg"></i> เพิ่ม
+        </button>
+      </div>
+
+      <!-- Existing types list -->
+      <div id="wasteTypesList">
+        <p class="text-center text-muted text-sm">กำลังโหลด...</p>
+      </div>
+    </div>
+
+    <!-- Today's Waste Summary & Records -->
+    <div class="card">
+      <div class="card-title">
+        <i class="bi bi-clock-history"></i> รายการวันนี้
+        <span class="badge badge-count" id="wasteCount">0</span>
+      </div>
+      <div id="todayWaste">
+        <p class="text-center text-muted text-sm">ยังไม่มีรายการ</p>
+      </div>
+    </div>
+
+    <!-- History Section -->
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;cursor:pointer;" onclick="toggleHistory()">
+        <i class="bi bi-archive"></i>&nbsp;ประวัติย้อนหลัง
+        <i class="bi bi-chevron-down" id="historyToggleIcon" style="margin-left:auto;transition:transform 0.2s;"></i>
+      </div>
+
+      <div id="historySection" class="hidden">
+        <!-- Filters -->
+        <div class="d-flex gap-2 flex-wrap mb-3">
+          <div style="flex:1;min-width:120px;">
+            <label class="form-label text-sm">จากวันที่</label>
+            <input type="date" class="form-input" id="histDateFrom">
+          </div>
+          <div style="flex:1;min-width:120px;">
+            <label class="form-label text-sm">ถึงวันที่</label>
+            <input type="date" class="form-input" id="histDateTo">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label text-sm">ชนิดขยะ <span class="text-muted">(ไม่บังคับ)</span></label>
+          <select class="form-input" id="histWasteType">
+            <option value="">-- ทุกชนิด --</option>
+          </select>
+        </div>
+
+        <!-- Quick range buttons -->
+        <div class="d-flex gap-2 flex-wrap mb-3">
+          <button class="btn btn-outline btn-sm" onclick="setHistoryRange('week')">7 วัน</button>
+          <button class="btn btn-outline btn-sm" onclick="setHistoryRange('month')">30 วัน</button>
+          <button class="btn btn-outline btn-sm" onclick="setHistoryRange('3months')">3 เดือน</button>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="histSearchBtn" onclick="loadHistory()" style="height:44px;">
+          <i class="bi bi-search"></i> ค้นหา
+        </button>
+
+        <!-- History Results -->
+        <div id="historyResults" class="mt-3" style="display:none;">
+          <!-- Summary -->
+          <div id="historySummary"></div>
+          <!-- Records -->
+          <div id="historyList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scrap List Export (ใบนำส่งขยะ) -->
+    <div class="card" id="scrapExportCard">
+      <div class="card-title" style="display:flex;align-items:center;cursor:pointer;" onclick="toggleScrapForm()">
+        <i class="bi bi-file-earmark-pdf"></i>&nbsp;ใบนำส่งขยะ (Export PDF)
+        <i class="bi bi-chevron-down" id="scrapFormToggleIcon" style="margin-left:auto;transition:transform 0.2s;"></i>
+      </div>
+
+      <div id="scrapFormSection" class="hidden">
+        <div class="d-flex gap-2 flex-wrap mb-3">
+          <div style="flex:1;min-width:120px;">
+            <label class="form-label text-sm">เดือน</label>
+            <input type="month" class="form-input" id="scrapExportMonth">
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label class="form-label text-sm">ชนิดขยะ <span class="text-muted">(ไม่บังคับ)</span></label>
+            <select class="form-input" id="scrapExportType">
+              <option value="">-- ทั้งหมด --</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn btn-danger btn-full mb-3" id="scrapExportPdfBtn" onclick="exportScrapPdf()">
+          <i class="bi bi-file-earmark-pdf"></i> Export PDF (ดาวน์โหลดใบนำส่งขยะ)
+        </button>
+
+        <div id="scrapPrintArea" style="overflow-x:auto;">
+          <div class="scrap-doc" id="scrapDoc">
+            <div class="scrap-doc-header">
+              <img src="../assets/company-logo.jpg" alt="JHR Logo">
+              <div class="scrap-doc-header-text">
+                <div class="scrap-doc-title">ใบนำส่งขยะและวัสดุเหลือใช้ภายในโรงงาน Scrap List</div>
+                <div class="scrap-doc-title-cn">厂内垃圾或边料余料搬运记录表</div>
+              </div>
+            </div>
+            <div class="scrap-doc-meta">
+              <p>ประเภทของเสีย / 废弃物类别: <span id="scrapDocTypes">☐ ขยะอันตราย 危险垃圾 &nbsp;&nbsp;&nbsp; ☐ ขยะรีไซเคิล 回收垃圾 &nbsp;&nbsp;&nbsp; ☐ ขยะอุตสาหกรรมที่ไม่เป็นอันตราย (เศษเหลือใช้จากการผลิต) 非危险工业垃圾（如生产边料） &nbsp;&nbsp;&nbsp; ☐ อื่น ๆ (ระบุ) Other 其他 ____________</span></p>
+              <p>แผนก/ฝ่าย (ผู้นำส่งขยะ) Division/Dept. (Transfer by) 运搬部门:
+                <input id="scrapDocDiv" type="text" value="H1 Lug&amp;Screw" class="scrap-doc-input" style="width:160px;">
+                &nbsp;&nbsp;&nbsp; ประจำเดือน/ปี Monthly/Yearly 月/年:
+                <input id="scrapDocMonth" type="text" class="scrap-doc-input" style="width:120px;">
+                &nbsp;&nbsp;&nbsp; Page 页:
+                <input id="scrapDocPage" type="text" value="1" class="scrap-doc-input" style="width:44px;text-align:center;">
+              </p>
+            </div>
+            <table class="scrap-doc-table">
+              <thead>
+                <tr>
+                  <th>วันที่ Date<span class="cn-sub">日期</span></th>
+                  <th>ลำดับ No.<span class="cn-sub">序号</span></th>
+                  <th>รายการ / รายละเอียดประเภทขยะ Description/ Rubbish Type<span class="cn-sub">项目/种类</span></th>
+                  <th>จำนวน (กก.) q'ty<span class="cn-sub">数量</span></th>
+                  <th>ผู้นำส่ง Transfered by<span class="cn-sub">搬运者</span></th>
+                  <th>ผู้รับ Received by<span class="cn-sub">接收者</span></th>
+                </tr>
+              </thead>
+              <tbody id="scrapFormBody">
+                <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+                <tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    let wasteTypes = [];
+
+    (function init() {
+      if (!Auth.requirePermission('waste')) return;
+      UI.renderTopNav('การทิ้งขยะ', 'bi-trash3');
+      UI.renderNav('waste');
+
+      const user = Auth.getUser();
+      document.getElementById('dateBadge').textContent = UI.formatDate(new Date());
+      document.getElementById('recorderName').value = user ? user.name : '';
+      setCurrentDateTime();
+      loadWasteTypes();
+      loadTodayWaste();
+    })();
+
+    function setCurrentDateTime() {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const local = now.getFullYear() + '-' +
+        pad(now.getMonth() + 1) + '-' +
+        pad(now.getDate()) + 'T' +
+        pad(now.getHours()) + ':' +
+        pad(now.getMinutes());
+      document.getElementById('recordedAt').value = local;
+    }
+
+    async function loadWasteTypes() {
+      try {
+        wasteTypes = await API.get('getWasteTypes');
+        renderWasteTypeDropdown();
+        renderWasteTypesList();
+      } catch (err) {
+        UI.showToast('โหลดชนิดขยะล้มเหลว', 'error');
+      }
+    }
+
+    function renderWasteTypeDropdown() {
+      const sel = document.getElementById('wasteType');
+      const current = sel.value;
+      let html = '<option value="">-- เลือกชนิดขยะ --</option>';
+      wasteTypes.forEach(t => {
+        const selected = t.typeName === current ? ' selected' : '';
+        html += '<option value="' + escAttr(t.typeName) + '"' + selected + '>' + escHtml(t.typeName) + '</option>';
+      });
+      sel.innerHTML = html;
+
+      const scrapSel = document.getElementById('scrapExportType');
+      if (scrapSel) {
+        const prevScrap = scrapSel.value;
+        let scrapHtml = '<option value="">-- ทั้งหมด --</option>';
+        wasteTypes.forEach(t => {
+          scrapHtml += '<option value="' + escAttr(t.typeName) + '">' + escHtml(t.typeName) + '</option>';
+        });
+        scrapSel.innerHTML = scrapHtml;
+        if (prevScrap && wasteTypes.some(t => t.typeName === prevScrap)) scrapSel.value = prevScrap;
+      }
+    }
+
+    function renderWasteTypesList() {
+      const container = document.getElementById('wasteTypesList');
+      if (!wasteTypes.length) {
+        container.innerHTML = '<p class="text-center text-muted text-sm">ยังไม่มีชนิดขยะ</p>';
+        return;
+      }
+      let html = '';
+      wasteTypes.forEach(t => {
+        html += '<div class="d-flex items-center justify-between mb-2" ' +
+          'style="padding:8px 12px;background:#f8f9fa;border-radius:8px;">' +
+          '<span>' + escHtml(t.typeName) + '</span>' +
+          '<button class="btn btn-sm" ' +
+          'style="background:var(--danger-light);color:var(--danger);padding:4px 12px;" ' +
+          'onclick="confirmDeleteType(\'' + escJs(t.typeId) + '\',\'' + escJs(t.typeName) + '\')">' +
+          '<i class="bi bi-trash"></i> ลบ</button>' +
+          '</div>';
+      });
+      container.innerHTML = html;
+    }
+
+    function toggleManageTypes() {
+      const section = document.getElementById('manageTypesSection');
+      section.classList.toggle('hidden');
+      if (!section.classList.contains('hidden')) {
+        renderWasteTypesList();
+        document.getElementById('newTypeName').focus();
+      }
+    }
+
+    async function addWasteType() {
+      const input = document.getElementById('newTypeName');
+      const typeName = input.value.trim();
+      if (!typeName) { UI.showToast('กรุณากรอกชื่อชนิดขยะ', 'warning'); return; }
+
+      try {
+        const result = await API.post('addWasteType', { typeName });
+        if (result.success) {
+          UI.showToast(result.message, 'success');
+          input.value = '';
+          await loadWasteTypes();
+        } else {
+          UI.showToast(result.message, 'error');
+        }
+      } catch (err) {
+        UI.showToast('เพิ่มชนิดขยะล้มเหลว', 'error');
+      }
+    }
+
+    async function confirmDeleteType(typeId, typeName) {
+      if (!confirm('ยืนยันลบชนิดขยะ "' + typeName + '"?')) return;
+      try {
+        const result = await API.post('deleteWasteType', { typeId });
+        if (result.success) {
+          UI.showToast(result.message, 'success');
+          await loadWasteTypes();
+        } else {
+          UI.showToast(result.message, 'error');
+        }
+      } catch (err) {
+        UI.showToast('ลบชนิดขยะล้มเหลว', 'error');
+      }
+    }
+
+    async function submitWaste() {
+      const wasteType = document.getElementById('wasteType').value;
+      const weightKg = document.getElementById('weightKg').value.trim();
+      const recordedAt = document.getElementById('recordedAt').value;
+      const remark = document.getElementById('wasteRemark').value.trim();
+
+      if (!wasteType) { UI.showToast('กรุณาเลือกชนิดขยะ', 'warning'); return; }
+      if (!weightKg || Number(weightKg) <= 0) { UI.showToast('กรุณากรอกน้ำหนักที่ถูกต้อง', 'warning'); return; }
+      if (!recordedAt) { UI.showToast('กรุณาเลือกวันที่และเวลา', 'warning'); return; }
+
+      const btn = document.getElementById('wasteSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:20px;height:20px;border-width:3px;display:inline-block;vertical-align:middle;margin-right:8px;"></div> กำลังบันทึก...';
+
+      try {
+        const result = await API.post('submitWaste', {
+          data: { wasteType, weightKg: Number(weightKg), recordedAt, remark }
+        });
+        if (result.success) {
+          UI.showToast(result.message, 'success');
+          resetForm();
+          loadTodayWaste();
+        } else {
+          UI.showToast(result.message, 'error');
+        }
+      } catch (err) {
+        UI.showToast('บันทึกล้มเหลว', 'error');
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle"></i> บันทึก';
+    }
+
+    function resetForm() {
+      document.getElementById('wasteType').value = '';
+      document.getElementById('weightKg').value = '';
+      document.getElementById('wasteRemark').value = '';
+      setCurrentDateTime();
+    }
+
+    async function loadTodayWaste() {
+      try {
+        const records = await API.get('getTodayWaste');
+        document.getElementById('wasteCount').textContent = records.length;
+
+        if (!records || records.length === 0) {
+          document.getElementById('todayWaste').innerHTML =
+            '<p class="text-center text-muted text-sm">ยังไม่มีรายการ</p>';
+          return;
+        }
+
+        let totalWeight = 0;
+        let html = '';
+        records.forEach(r => {
+          totalWeight += Number(r.WeightKg) || 0;
+          const time = r.Timestamp ? (r.Timestamp.split(' ')[1] || '').substring(0, 5) : '';
+          html += '<div class="entry-card" style="border-left-color:var(--warning);">' +
+            '<div class="entry-header">' +
+            '<strong>' + escHtml(r.WasteType || '') + '</strong>' +
+            '<span class="text-muted text-sm">' + time + '</span>' +
+            '</div>' +
+            '<div class="entry-detail">' +
+            '<span>' + escHtml(r.RecorderName || '') + '</span>' +
+            '<span><strong>' + Number(r.WeightKg || 0).toFixed(2) + '</strong> กก.</span>' +
+            '</div>' +
+            (r.Remark ? '<div class="text-muted text-xs mt-1">' + escHtml(r.Remark) + '</div>' : '') +
+            '</div>';
+        });
+
+        const summary = '<div class="d-flex justify-between items-center mb-2" ' +
+          'style="padding:10px 14px;background:var(--warning-light);border-radius:8px;">' +
+          '<span style="font-weight:600;"><i class="bi bi-bar-chart-fill"></i> รวมวันนี้</span>' +
+          '<span style="font-weight:700;font-size:1.1em;">' + totalWeight.toFixed(2) + ' กก.</span>' +
+          '</div>';
+
+        document.getElementById('todayWaste').innerHTML = summary + html;
+      } catch (err) {}
+    }
+
+    /* ---- History ---- */
+    let historyOpen = false;
+
+    function toggleHistory() {
+      historyOpen = !historyOpen;
+      const section = document.getElementById('historySection');
+      const icon = document.getElementById('historyToggleIcon');
+      section.classList.toggle('hidden', !historyOpen);
+      icon.style.transform = historyOpen ? 'rotate(180deg)' : '';
+
+      if (historyOpen) {
+        // Set default range (last 7 days)
+        setHistoryRange('week');
+        // Populate waste type filter
+        const sel = document.getElementById('histWasteType');
+        let html = '<option value="">-- ทุกชนิด --</option>';
+        wasteTypes.forEach(t => {
+          html += '<option value="' + escAttr(t.typeName) + '">' + escHtml(t.typeName) + '</option>';
+        });
+        sel.innerHTML = html;
+      }
+    }
+
+    function setHistoryRange(range) {
+      const today = new Date();
+      const to = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+      let from = to;
+
+      if (range === 'week') {
+        const d = new Date(today);
+        d.setDate(d.getDate() - 6);
+        from = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      } else if (range === 'month') {
+        const d = new Date(today);
+        d.setDate(d.getDate() - 29);
+        from = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      } else if (range === '3months') {
+        const d = new Date(today);
+        d.setMonth(d.getMonth() - 3);
+        from = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      }
+
+      document.getElementById('histDateFrom').value = from;
+      document.getElementById('histDateTo').value = to;
+    }
+
+    async function loadHistory() {
+      const dateFrom = document.getElementById('histDateFrom').value;
+      const dateTo = document.getElementById('histDateTo').value;
+      const wasteTypeFilter = document.getElementById('histWasteType').value;
+
+      if (!dateFrom || !dateTo) {
+        UI.showToast('กรุณาเลือกช่วงวันที่', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('histSearchBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:3px;display:inline-block;vertical-align:middle;margin-right:8px;"></div> กำลังค้นหา...';
+
+      try {
+        const filters = { dateFrom, dateTo };
+        if (wasteTypeFilter) filters.wasteType = wasteTypeFilter;
+
+        const records = await API.get('getWasteHistory', { filters: JSON.stringify(filters) });
+        const resultsDiv = document.getElementById('historyResults');
+        resultsDiv.style.display = 'block';
+
+        if (!records || records.length === 0) {
+          document.getElementById('historySummary').innerHTML = '';
+          document.getElementById('historyList').innerHTML =
+            '<p class="text-center text-muted text-sm mt-2">ไม่พบข้อมูลในช่วงเวลาที่เลือก</p>';
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-search"></i> ค้นหา';
+          return;
+        }
+
+        // Summary by waste type
+        let totalWeight = 0;
+        const byType = {};
+        const byDate = {};
+
+        records.forEach(r => {
+          const w = Number(r.WeightKg) || 0;
+          totalWeight += w;
+
+          const t = r.WasteType || 'ไม่ระบุ';
+          if (!byType[t]) byType[t] = { count: 0, weight: 0 };
+          byType[t].count++;
+          byType[t].weight += w;
+
+          const d = r.Date || 'ไม่ระบุ';
+          if (!byDate[d]) byDate[d] = { count: 0, weight: 0 };
+          byDate[d].count++;
+          byDate[d].weight += w;
+        });
+
+        // Render summary
+        let summaryHtml = '<div style="padding:12px 14px;background:var(--warning-light);border-radius:8px;margin-bottom:12px;">' +
+          '<div class="d-flex justify-between items-center">' +
+          '<span style="font-weight:600;"><i class="bi bi-bar-chart-fill"></i> สรุปรวม</span>' +
+          '<span style="font-weight:700;font-size:1.1em;">' + totalWeight.toFixed(2) + ' กก.</span>' +
+          '</div>' +
+          '<div class="text-sm text-muted mt-1">' + records.length + ' รายการ | ' +
+          dateFrom + ' ถึง ' + dateTo + '</div></div>';
+
+        // By type breakdown
+        const typeKeys = Object.keys(byType);
+        if (typeKeys.length > 0) {
+          summaryHtml += '<div style="margin-bottom:12px;">';
+          typeKeys.forEach(t => {
+            const d = byType[t];
+            const pct = totalWeight > 0 ? ((d.weight / totalWeight) * 100).toFixed(1) : '0.0';
+            summaryHtml += '<div class="d-flex justify-between items-center" ' +
+              'style="padding:8px 12px;background:#f8f9fa;border-radius:8px;margin-bottom:4px;">' +
+              '<span><strong>' + escHtml(t) + '</strong> <span class="text-muted text-sm">(' + d.count + ' ครั้ง)</span></span>' +
+              '<span style="font-weight:600;">' + d.weight.toFixed(2) + ' กก. <span class="text-muted text-sm">(' + pct + '%)</span></span>' +
+              '</div>';
+          });
+          summaryHtml += '</div>';
+        }
+
+        document.getElementById('historySummary').innerHTML = summaryHtml;
+
+        // Render records grouped by date
+        let listHtml = '<div style="font-weight:600;margin-bottom:8px;"><i class="bi bi-list-ul"></i> รายการทั้งหมด</div>';
+        const dateKeys = Object.keys(byDate).sort().reverse();
+
+        dateKeys.forEach(date => {
+          const dayRecords = records.filter(r => r.Date === date);
+          const dayWeight = dayRecords.reduce((s, r) => s + (Number(r.WeightKg) || 0), 0);
+
+          listHtml += '<div style="padding:6px 10px;background:var(--primary-light);border-radius:6px;margin:10px 0 6px;font-weight:600;font-size:14px;">' +
+            '<i class="bi bi-calendar3"></i> ' + date + ' &mdash; ' + dayWeight.toFixed(2) + ' กก. (' + dayRecords.length + ' รายการ)</div>';
+
+          dayRecords.forEach(r => {
+            const time = r.Timestamp ? (r.Timestamp.split(' ')[1] || '').substring(0, 5) : '';
+            listHtml += '<div class="entry-card" style="border-left-color:var(--warning);">' +
+              '<div class="entry-header">' +
+              '<strong>' + escHtml(r.WasteType || '') + '</strong>' +
+              '<span class="text-muted text-sm">' + time + '</span>' +
+              '</div>' +
+              '<div class="entry-detail">' +
+              '<span>' + escHtml(r.RecorderName || '') + '</span>' +
+              '<span><strong>' + Number(r.WeightKg || 0).toFixed(2) + '</strong> กก.</span>' +
+              '</div>' +
+              (r.Remark ? '<div class="text-muted text-xs mt-1">' + escHtml(r.Remark) + '</div>' : '') +
+              '</div>';
+          });
+        });
+
+        document.getElementById('historyList').innerHTML = listHtml;
+      } catch (err) {
+        UI.showToast('โหลดประวัติล้มเหลว', 'error');
+      }
+
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-search"></i> ค้นหา';
+    }
+
+    /* ---- Scrap List Export (ใบนำส่งขยะ) ---- */
+    let scrapFormOpen = false;
+    let scrapFormRows = [];
+
+    function toggleScrapForm() {
+      scrapFormOpen = !scrapFormOpen;
+      const section = document.getElementById('scrapFormSection');
+      const icon = document.getElementById('scrapFormToggleIcon');
+      section.classList.toggle('hidden', !scrapFormOpen);
+      icon.style.transform = scrapFormOpen ? 'rotate(180deg)' : '';
+
+      if (scrapFormOpen) {
+        const monthInput = document.getElementById('scrapExportMonth');
+        if (!monthInput.value) {
+          const d = new Date();
+          monthInput.value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        }
+        loadScrapForm();
+      }
+    }
+
+    function selectedScrapMonth() {
+      const inp = document.getElementById('scrapExportMonth');
+      if (inp && /^\d{4}-\d{2}$/.test(inp.value || '')) return inp.value;
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+
+    async function loadScrapForm() {
+      const ym = selectedScrapMonth();
+      const [y, m] = ym.split('-').map(Number);
+      const lastDay = new Date(y, m, 0).getDate();
+
+      try {
+        const filters = { dateFrom: ym + '-01', dateTo: ym + '-' + String(lastDay).padStart(2, '0') };
+        const records = await API.get('getWasteHistory', { filters: JSON.stringify(filters) });
+        scrapFormRows = (records || []).slice().sort((a, b) => String(a.Timestamp || '').localeCompare(String(b.Timestamp || '')));
+      } catch (err) {
+        scrapFormRows = [];
+      }
+
+      const monthInput = document.getElementById('scrapDocMonth');
+      if (monthInput) monthInput.value = String(m).padStart(2, '0') + '/' + y;
+
+      renderScrapForm();
+    }
+
+    function renderScrapForm() {
+      const filterType = document.getElementById('scrapExportType').value;
+      const rows = filterType ? scrapFormRows.filter(r => String(r.WasteType || '') === filterType) : scrapFormRows;
+
+      const MIN_ROWS = 5;
+      const body = document.getElementById('scrapFormBody');
+      const dataRows = rows.map((r, idx) => {
+        const w = Number(r.WeightKg || 0);
+        const dateStr = String(r.Date || r.Timestamp || '').substring(0, 10);
+        return '<tr>' +
+          '<td>' + escHtml(dateStr) + '</td>' +
+          '<td>' + (idx + 1) + '</td>' +
+          '<td>' + escHtml(r.WasteType || '') + '</td>' +
+          '<td>' + w.toFixed(2) + '</td>' +
+          '<td>' + escHtml(r.RecorderName || '') + '</td>' +
+          '<td></td>' +
+          '</tr>';
+      });
+      const emptyRow = '<tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+      while (dataRows.length < MIN_ROWS) dataRows.push(emptyRow);
+      body.innerHTML = dataRows.join('');
+
+      const typeNames = filterType ? [filterType] : Array.from(new Set(rows.map(r => String(r.WasteType || '')).filter(Boolean)));
+      updateScrapDocCheckboxes(typeNames);
+    }
+
+    function updateScrapDocCheckboxes(typeNames) {
+      const span = document.getElementById('scrapDocTypes');
+      if (!span) return;
+      const cats = [
+        { label: 'ขยะอันตราย 危险垃圾', match: t => t.indexOf('อันตราย') !== -1 && t.indexOf('ไม่') === -1 && t.indexOf('อุตสาหกรรม') === -1 },
+        { label: 'ขยะรีไซเคิล 回收垃圾', match: t => t.indexOf('รีไซเคิล') !== -1 },
+        { label: 'ขยะอุตสาหกรรมที่ไม่เป็นอันตราย (เศษเหลือใช้จากการผลิต) 非危险工业垃圾（如生产边料）', match: t => t.indexOf('อุตสาหกรรม') !== -1 },
+        { label: 'อื่น ๆ (ระบุ) Other 其他 ____________', match: null }
+      ];
+      const checked = [false, false, false, false];
+      (typeNames || []).forEach(t => {
+        let idx = cats.findIndex(c => c.match && c.match(t));
+        if (idx === -1) idx = 3;
+        checked[idx] = true;
+      });
+      span.innerHTML = cats.map((c, i) => (checked[i] ? '☑' : '☐') + ' ' + c.label).join(' &nbsp;&nbsp;&nbsp; ');
+    }
+
+    function loadScriptOnce(src) {
+      return new Promise((resolve, reject) => {
+        if (Array.from(document.scripts).some(s => s.src === src)) return resolve();
+        const el = document.createElement('script');
+        el.src = src;
+        el.onload = () => resolve();
+        el.onerror = () => reject(new Error('โหลดไม่สำเร็จ: ' + src));
+        document.head.appendChild(el);
+      });
+    }
+
+    async function ensurePdfLibs() {
+      if (window.html2canvas && window.jspdf) return true;
+      try {
+        await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+        await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+        return !!(window.html2canvas && window.jspdf && window.jspdf.jsPDF);
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function scrapPdfFilename() {
+      const type = document.getElementById('scrapExportType').value;
+      const suffix = type ? '_' + type.replace(/[\s/\\?%*:|"<>]+/g, '-') : '';
+      return 'ScrapList_' + selectedScrapMonth() + suffix + '.pdf';
+    }
+
+    async function exportScrapPdf() {
+      const btn = document.getElementById('scrapExportPdfBtn');
+      const oldLabel = btn.innerHTML;
+      const target = document.getElementById('scrapDoc');
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="bi bi-hourglass-split"></i> กำลังสร้าง PDF...';
+      const ok = await ensurePdfLibs();
+      if (!ok) {
+        btn.disabled = false;
+        btn.innerHTML = oldLabel;
+        return legacyPrintScrap();
+      }
+
+      try {
+        const canvas = await window.html2canvas(target, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          windowWidth: target.scrollWidth,
+          scrollX: 0,
+          scrollY: 0,
+          onclone: (clonedDoc) => {
+            clonedDoc.querySelectorAll('.scrap-doc-input').forEach(inp => {
+              const span = clonedDoc.createElement('span');
+              if (inp.value) {
+                const pad = ' '.repeat(6);
+                span.textContent = pad + inp.value + pad;
+                span.style.textDecoration = 'underline';
+                span.style.textUnderlineOffset = '4px';
+              } else {
+                span.textContent = '____________';
+              }
+              inp.parentNode.replaceChild(span, inp);
+            });
+          }
+        });
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 8;
+        const imgW = pageW - margin * 2;
+        const imgH = canvas.height * imgW / canvas.width;
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        if (imgH <= pageH - margin * 2) {
+          pdf.addImage(imgData, 'JPEG', margin, margin, imgW, imgH);
+        } else {
+          let heightLeft = imgH;
+          let position = margin;
+          pdf.addImage(imgData, 'JPEG', margin, position, imgW, imgH);
+          heightLeft -= (pageH - margin);
+          while (heightLeft > 0) {
+            position = margin - (imgH - heightLeft);
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', margin, position, imgW, imgH);
+            heightLeft -= pageH;
+          }
+        }
+        pdf.save(scrapPdfFilename());
+      } catch (e) {
+        UI.showToast('สร้าง PDF ไม่สำเร็จ กำลังใช้การพิมพ์ผ่านเบราว์เซอร์แทน', 'error');
+        legacyPrintScrap();
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldLabel;
+      }
+    }
+
+    function legacyPrintScrap() {
+      const originalTitle = document.title;
+      document.title = 'ScrapList_' + selectedScrapMonth();
+      document.body.classList.add('printing-scrap');
+      window.scrollTo(0, 0);
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+          document.body.classList.remove('printing-scrap');
+          document.title = originalTitle;
+        }, 800);
+      }, 300);
+    }
+
+    document.getElementById('scrapExportMonth')?.addEventListener('change', loadScrapForm);
+    document.getElementById('scrapExportType')?.addEventListener('change', renderScrapForm);
+
+    /* ---- helpers ---- */
+    function escHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function escAttr(s) {
+      return String(s || '').replace(/"/g,'&quot;');
+    }
+    function escJs(s) {
+      return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    }
+  </script>
+</body>
+</html>

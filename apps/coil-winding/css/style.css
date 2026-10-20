@@ -1,0 +1,123 @@
+body { -webkit-tap-highlight-color: transparent; }
+.tab-active { @apply border-l-4 border-blue-600 text-blue-600 font-bold bg-blue-50; }
+.hidden { display: none; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
+.table-container { @apply overflow-x-auto bg-white rounded-xl shadow mt-4 border border-gray-100; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+.table-container::-webkit-scrollbar { height: 14px; }
+.table-container::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; margin: 0 4px; }
+.table-container::-webkit-scrollbar-thumb { background-color: #64748b; border-radius: 8px; border: 3px solid #f1f5f9; }
+.table-container::-webkit-scrollbar-thumb:hover { background-color: #475569; }
+th { @apply px-6 py-4 bg-gray-50 text-left text-xs font-bold text-gray-600 uppercase border-b whitespace-nowrap tracking-wider; }
+td { @apply px-6 py-4 border-b text-sm text-gray-700 whitespace-nowrap; }
+.loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.widget-card { background-color: #ffffff !important; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; height: 100%; transition: height 0.3s ease; }
+.drag-handle { cursor: grab; }
+.drag-handle:active { cursor: grabbing; }
+.sortable-ghost { opacity: 0.4; background-color: #f3f4f6; border: 2px dashed #cbd5e1; }
+
+.layout-single { grid-template-columns: minmax(0, 1fr) !important; }
+.layout-single > div { grid-column: span 1 / span 1 !important; }
+
+.maximized-card {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 90 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 1.5rem !important;
+    background-color: #ffffff !important;
+}
+
+/* =========================================================
+   🌟 CSS FOR PRINTING (Optimized for Android/iOS PDF) 🌟
+   ========================================================= */
+@media print {
+    @page { 
+        margin: 10mm; 
+        size: A4 portrait; 
+    }
+    
+    body { 
+        background-color: white !important; 
+        font-size: 12pt; 
+        -webkit-print-color-adjust: exact; 
+        print-color-adjust: exact; 
+        overflow: visible !important; /* สำคัญมากสำหรับ Android */
+    }
+    
+    /* 1. ซ่อนทุกอย่างในหน้าเว็บยกเว้น Modal รายงาน */
+    body.printing-auto-report > *:not(#modal-auto-report) { 
+        display: none !important; 
+    }
+    
+    /* 2. บังคับให้ Modal กลายเป็นเอกสารธรรมดา (ถอด Fixed/Absolute ออก) */
+    body.printing-auto-report #modal-auto-report { 
+        position: relative !important; /* ห้ามใช้ absolute หรือ fixed บนมือถือเด็ดขาด */
+        display: block !important; 
+        opacity: 1 !important; 
+        background: white !important; 
+        width: 100% !important; 
+        height: auto !important; 
+        overflow: visible !important; 
+    }
+    
+    body.printing-auto-report #modal-auto-report > div { 
+        width: 100% !important; 
+        max-width: 100% !important; 
+        box-shadow: none !important; 
+        margin: 0 !important; 
+        padding: 0 !important; 
+        max-height: none !important; 
+        overflow: visible !important; 
+    }
+    
+    /* 3. ซ่อน UI ควบคุมและปุ่มต่างๆ ในขณะพิมพ์ */
+    body.printing-auto-report .auto-report-hide,
+    nav, #section-form, #section-planning, #section-admin, .loader, #debug-panel, #undo-toast, .print-hide, .widget-header button, #print-header { 
+        display: none !important; 
+    }
+    
+    /* 4. การจัดการพื้นที่และหน้ากระดาษ */
+    #section-dashboard { max-width: 100% !important; padding: 0 !important; margin: 0 !important; display: block !important; }
+    .bg-white.p-4.rounded-xl.shadow-md { box-shadow: none !important; border: none !important; padding: 0 !important; margin-bottom: 20px !important; }
+    .widget-card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid !important; margin-bottom: 20px !important; }
+    #sortable-grid { display: block !important; }
+    #sortable-grid > div { width: 100% !important; height: auto !important; min-height: 350px !important; margin-bottom: 20px !important; }
+    .table-container { overflow: visible !important; box-shadow: none !important; border: none !important; }
+    
+    /* 5. ควบคุมไม่ให้กราฟ/ตาราง โดนตัดครึ่งกลางหน้ากระดาษ */
+    .page-break-before { page-break-before: always !important; break-before: page !important; }
+    .page-break-inside-avoid { page-break-inside: avoid !important; break-inside: avoid !important; display: block !important; }
+
+    /* ===== พิมพ์ใบนำส่งขยะ (Scrap List) เป็น PDF ===== */
+    /* ซ่อนทุกอย่างยกเว้นหน้าฟอร์มขยะ */
+    body.printing-scrap > *:not(#section-scrap) { display: none !important; }
+    body.printing-scrap #section-scrap {
+        display: block !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    /* ในหน้าฟอร์มขยะ แสดงเฉพาะเอกสารที่จะพิมพ์ */
+    body.printing-scrap #section-scrap > *:not(#scrap-print-area) { display: none !important; }
+    body.printing-scrap #scrap-print-area {
+        display: block !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+    }
+    /* ให้เอกสารพอดีกับ A4 (ลดขนาดตัวอักษรหัวเรื่องที่ตั้งไว้ใหญ่สำหรับจอ) */
+    body.printing-scrap .scrap-doc { min-width: 0 !important; width: 100% !important; }
+    body.printing-scrap .scrap-doc-title { font-size: 18pt !important; }
+    body.printing-scrap .scrap-doc-title-cn { font-size: 20pt !important; }
+    body.printing-scrap .scrap-doc table { font-size: 9pt !important; }
+    body.printing-scrap .scrap-doc .text-3xl { font-size: 12pt !important; }
+    body.printing-scrap .scrap-doc-input { border-bottom: 1px solid #000 !important; }
+}
+#print-header { display: none; }

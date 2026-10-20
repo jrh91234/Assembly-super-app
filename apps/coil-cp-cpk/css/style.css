@@ -1,0 +1,13 @@
+/* ฟอนต์ Sarabun ย้ายไปโหลดด้วย <link> ใน index.html แล้ว
+   (@import ทำให้เบราว์เซอร์ต้องรอโหลด style.css จบก่อนถึงจะเริ่มโหลดฟอนต์) */
+
+body {
+    font-family: 'Sarabun', sans-serif; 
+}
+
+/* เพิ่ม Transition ให้ Card ดูสมูทขึ้น */
+.transition-colors {
+    transition-property: background-color, border-color, color;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+}

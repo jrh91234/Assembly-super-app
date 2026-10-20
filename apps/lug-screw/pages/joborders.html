@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Job Order - H1 Lug&Screw</title>
+  <link rel="icon" href="https://img.icons8.com/color/48/factory.png">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <style>
+    .planning-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding:14px; background:#eef2ff; border:1px solid #dbe3ff; border-radius:10px; }
+    .planning-form-grid .full { grid-column:1/-1; }
+    .planning-table { min-width:1080px; }
+    .planning-table th { white-space:nowrap; font-size:12px; }
+    .planning-table td { font-size:12px; vertical-align:middle; }
+    .planning-table .number { text-align:right; white-space:nowrap; }
+    .planning-progress { min-width:92px; }
+    .planning-progress .progress-bar-container { height:7px; }
+    @media (max-width: 700px) {
+      .planning-form-grid { grid-template-columns:1fr; }
+      .planning-form-grid .full { grid-column:auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-3">
+    <div class="card">
+      <div class="card-title"><i class="bi bi-calendar2-week"></i> วางแผนการผลิต (Job Order)</div>
+      <div class="text-sm text-muted mb-2">ข้อมูลขั้นต่ำ: เลข Job Order, รุ่นสินค้า, เครื่องจักร และจำนวนเป้าหมาย — เครื่องจักรเลือกได้ทั้งรายเครื่องหรือทุกเครื่อง และถ้าเว้นเลขไว้ระบบจะสร้างให้อัตโนมัติ</div>
+      <div class="planning-form-grid">
+        <div class="form-group">
+          <label class="form-label"><i class="bi bi-ticket-perforated"></i> เลข Job Order</label>
+          <input type="text" class="form-input" id="jobOrderId" placeholder="เว้นว่าง = สร้างอัตโนมัติ">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><i class="bi bi-calendar3"></i> วันที่แผน (ตัดรอบ 08:00 น.)</label>
+          <input type="date" class="form-input" id="workDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><i class="bi bi-box-seam"></i> รุ่นสินค้า (Model) <span class="text-danger">*</span></label>
+          <select class="form-input" id="productCode">
+            <option value="">-- เลือกสินค้า --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><i class="bi bi-123"></i> จำนวนเป้าหมาย (ชิ้น) <span class="text-danger">*</span></label>
+          <input type="number" class="form-input" id="plannedQty" min="1" step="1" value="1300" placeholder="Target Qty">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><i class="bi bi-gear"></i> เครื่องจักรที่วางแผน <span class="text-danger">*</span></label>
+          <select class="form-input" id="machineId" onchange="onMachineChange()">
+            <option value="">-- เลือกเครื่องจักร --</option>
+            <option value="ALL">ทุกเครื่อง</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><i class="bi bi-clock"></i> กะการผลิต</label>
+          <select class="form-input" id="shift">
+            <option value="ALL">ทุกกะ (All Shifts)</option>
+            <option value="A">กะ A</option>
+            <option value="B">กะ B</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label"><i class="bi bi-calendar-check"></i> กำหนดส่ง</label>
+          <input type="date" class="form-input" id="dueDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><i class="bi bi-flag"></i> ความสำคัญ</label>
+          <select class="form-input" id="priority">
+            <option value="normal">ปกติ</option>
+            <option value="low">ต่ำ</option>
+            <option value="high">สูง</option>
+            <option value="urgent">เร่งด่วน</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">หมายเหตุ <span class="text-muted text-sm">(ไม่บังคับ)</span></label>
+        <textarea class="form-input" id="remark" rows="2" placeholder="รายละเอียดเพิ่มเติมของ Job Order"></textarea>
+      </div>
+      <button class="btn btn-primary btn-full" id="createBtn" onclick="createOrder()" style="height:54px;font-size:17px;">
+        <i class="bi bi-save"></i> บันทึกแผน / สร้าง Job Order
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="d-flex justify-between items-center" style="gap:10px;flex-wrap:wrap;">
+        <div>
+          <div class="card-title" style="margin-bottom:3px;"><i class="bi bi-list-check"></i> รายการ Job Order <span class="badge badge-count" id="orderCount">0</span></div>
+          <div class="text-sm text-muted" id="orderSummary">กำลังคำนวณยอดแผน...</div>
+          <div class="text-xs mt-1" id="orderWarning" style="color:#d97706;"></div>
+        </div>
+        <div class="d-flex gap-2" style="align-items:end;flex-wrap:wrap;">
+          <select class="form-input" id="filterStatus" onchange="loadOrders()" style="min-width:150px;">
+            <option value="all">ทุกสถานะ</option>
+            <option value="open">เปิดงาน</option>
+            <option value="in-progress">กำลังทำ</option>
+            <option value="completed">เสร็จแล้ว</option>
+            <option value="cancelled">ยกเลิก</option>
+          </select>
+          <input type="text" class="form-input" id="orderSearch" placeholder="ค้นหา Job Order / รุ่น" oninput="filterOrders()" style="min-width:190px;">
+          <button class="btn btn-outline" onclick="loadOrders()"><i class="bi bi-arrow-clockwise"></i> รีเฟรช</button>
+        </div>
+      </div>
+      <div class="text-xs text-muted mt-2 mb-2">ผลิตแล้ว = FG จาก ProductionLog · NG = ของเสียจากผลิต · รอ Sorting = จำนวนที่ลงทะเบียนคัดแต่ยังคัดไม่ครบ</div>
+      <div id="orderList"><p class="text-center text-muted text-sm">กำลังโหลด...</p></div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/ui.js"></script>
+  <script>
+    let machines = [];
+    let products = [];
+    let allOrders = [];
+
+    (function init() {
+      if (!Auth.requirePermission('joborders')) return;
+      UI.renderTopNav('วางแผนการผลิต (Job Order)', 'bi-calendar2-week');
+      UI.renderNav('joborders');
+      const today = UI.getToday();
+      document.getElementById('workDate').value = today;
+      document.getElementById('dueDate').value = today;
+      loadMasters();
+      loadOrders();
+    })();
+
+    async function loadMasters() {
+      try {
+        const result = await Promise.all([
+          API.get('getMachines'),
+          API.get('getProducts')
+        ]);
+        machines = Array.isArray(result[0]) ? result[0] : [];
+        products = Array.isArray(result[1]) ? result[1] : [];
+        const machineSelect = document.getElementById('machineId');
+        machineSelect.innerHTML = '<option value="">-- เลือกเครื่องจักร --</option><option value="ALL">ทุกเครื่อง</option>' +
+          machines.map(function(m) {
+            const id = m.machineId || m.MachineID || '';
+            const name = m.machineName || m.MachineName || id;
+            return '<option value="' + escAttr(id) + '">' + escHtml(id + ' - ' + name) + '</option>';
+          }).join('');
+        populateProducts();
+      } catch (err) {
+        UI.showToast('โหลดข้อมูลเครื่องจักร/สินค้าล้มเหลว', 'error');
+      }
+    }
+
+    function populateProducts() {
+      const machineId = document.getElementById('machineId').value;
+      const machine = machines.find(function(m) { return (m.machineId || m.MachineID) === machineId; });
+      const assignedText = machine ? (machine.assignedProducts || machine.AssignedProducts || '') : '';
+      const assigned = String(assignedText || '').split(',').map(function(v) { return v.trim(); }).filter(Boolean);
+      const available = assigned.length ? products.filter(function(p) {
+        return assigned.indexOf(p.productCode || p.ProductCode) !== -1;
+      }) : products;
+      const select = document.getElementById('productCode');
+      // Rebuilding the list (to show only what the chosen machine can make) used to
+      // drop the product already picked, so it had to be chosen again after every
+      // machine change. Keep it whenever the new machine can still make it.
+      const previous = select.value;
+      select.innerHTML = '<option value="">-- เลือกสินค้า --</option>' +
+        available.map(function(p) {
+          const code = p.productCode || p.ProductCode || '';
+          const name = p.productName || p.ProductName || code;
+          return '<option value="' + escAttr(code) + '">' + escHtml(code + ' - ' + name) + '</option>';
+        }).join('');
+      if (!previous) return;
+      if (Array.from(select.options).some(function(o) { return o.value === previous; })) {
+        select.value = previous;
+      } else {
+        UI.showToast('สินค้า ' + previous + ' ไม่ได้กำหนดให้เครื่องนี้ กรุณาเลือกสินค้าใหม่', 'warning');
+      }
+    }
+
+    function onMachineChange() {
+      populateProducts();
+    }
+
+    async function createOrder() {
+      const data = {
+        workDate: document.getElementById('workDate').value,
+        dueDate: document.getElementById('dueDate').value,
+        jobOrderId: document.getElementById('jobOrderId').value.trim(),
+        machineId: document.getElementById('machineId').value,
+        productCode: document.getElementById('productCode').value,
+        shift: document.getElementById('shift').value,
+        plannedQty: Number(document.getElementById('plannedQty').value),
+        priority: document.getElementById('priority').value,
+        remark: document.getElementById('remark').value.trim()
+      };
+      if (!data.workDate || !data.machineId || !data.productCode || !data.plannedQty || data.plannedQty <= 0) {
+        UI.showToast('กรุณากรอกวันที่ เครื่องจักร สินค้า และจำนวนแผน', 'warning');
+        return;
+      }
+      const btn = document.getElementById('createBtn');
+      btn.disabled = true;
+      try {
+        const result = await API.post('createJobOrder', { data: data });
+        if (!result.success) {
+          UI.showToast(result.message || 'สร้าง Job Order ไม่สำเร็จ', 'error');
+          return;
+        }
+        UI.showToast(result.message, 'success');
+        document.getElementById('jobOrderId').value = '';
+        document.getElementById('remark').value = '';
+        document.getElementById('priority').value = 'normal';
+        loadOrders();
+      } catch (err) {
+        UI.showToast('สร้าง Job Order ล้มเหลว', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadOrders() {
+      const list = document.getElementById('orderList');
+      list.innerHTML = '<p class="text-center text-muted text-sm"><span class="spinner" style="display:inline-block;width:18px;height:18px;border-width:2px;"></span> กำลังโหลด...</p>';
+      const filters = {
+        status: document.getElementById('filterStatus').value
+      };
+      try {
+        const result = await API.get('getJobOrders', {
+          filters: JSON.stringify(filters)
+        }, { timeoutMs: API.LONG_READ_TIMEOUT_MS });
+        if (!Array.isArray(result)) {
+          list.innerHTML = '<p class="text-center text-muted text-sm">' + escHtml((result && result.message) || 'ไม่พบข้อมูล') + '</p>';
+          return;
+        }
+        allOrders = result;
+        filterOrders();
+      } catch (err) {
+        list.innerHTML = '<p class="text-center text-danger text-sm">โหลด Job Order ไม่สำเร็จ</p>';
+        UI.showToast('โหลด Job Order ล้มเหลว', 'error');
+      }
+    }
+
+    function filterOrders() {
+      const query = String(document.getElementById('orderSearch').value || '').trim().toLowerCase();
+      const orders = allOrders.filter(function(order) {
+        if (!query) return true;
+        return String(order.jobOrderId || '').toLowerCase().includes(query) ||
+          String(order.productCode || '').toLowerCase().includes(query) ||
+          String(order.machineId || '').toLowerCase().includes(query);
+      });
+      document.getElementById('orderCount').textContent = orders.length === allOrders.length
+        ? allOrders.length
+        : orders.length + '/' + allOrders.length;
+      renderOrders(orders);
+    }
+
+    function renderOrders(orders) {
+      const list = document.getElementById('orderList');
+      if (!orders.length) {
+        document.getElementById('orderSummary').textContent = 'ยังไม่มี Job Order ตามเงื่อนไข';
+        document.getElementById('orderWarning').textContent = '';
+        list.innerHTML = '<p class="text-center text-muted text-sm">ยังไม่มี Job Order ตามเงื่อนไข</p>';
+        return;
+      }
+      let totalPlanned = 0;
+      let totalActual = 0;
+      let totalDefect = 0;
+      let totalWaitingSort = 0;
+      let totalSorted = 0;
+      orders.forEach(function(order) {
+        const planned = Number(order.plannedQty) || 0;
+        const actual = Number(order.actualQty) || 0;
+        const sorted = Number(order.sortingQty) || 0;
+        totalPlanned += planned;
+        totalActual += actual;
+        totalDefect += Number(order.defectQty) || 0;
+        totalSorted += sorted;
+        totalWaitingSort += Math.max(0, (Number(order.sortingPlannedQty) || 0) - sorted);
+      });
+      const totalProgress = totalPlanned > 0 ? Math.min(100, Math.round(totalActual / totalPlanned * 100)) : 0;
+      document.getElementById('orderSummary').textContent =
+        orders.length + ' รายการ · แผน ' + UI.formatNumber(totalPlanned) + ' ชิ้น · ผลิตแล้ว ' +
+        UI.formatNumber(totalActual) + ' ชิ้น (' + totalProgress + '%) · NG สุทธิ ' +
+        UI.formatNumber(totalDefect) + ' ชิ้น · รอ Sorting ' + UI.formatNumber(totalWaitingSort) + ' ชิ้น';
+      document.getElementById('orderWarning').textContent = totalWaitingSort > 0
+        ? '⚠ มีงานคัดที่ยังไม่ครบ ' + UI.formatNumber(totalWaitingSort) + ' ชิ้น'
+        : '';
+      let html = '<div class="table-wrap"><table class="data-table planning-table"><thead><tr>' +
+        '<th>JOB ORDER</th><th>วันที่แผน / กะ</th><th>รุ่นสินค้า</th><th class="number">เป้า</th>' +
+        '<th class="number">ผลิตแล้ว<br>(FG)</th><th class="number">NG สุทธิ</th><th class="number">รอ<br>SORTING</th>' +
+        '<th class="number">คัดแล้ว</th><th class="number">คงเหลือ</th><th>ความคืบหน้า</th><th>สถานะ</th><th>จัดการ</th>' +
+        '</tr></thead><tbody>';
+      orders.forEach(function(order) {
+        const actual = Number(order.actualQty) || 0;
+        const planned = Number(order.plannedQty) || 0;
+        const defect = Number(order.defectQty) || 0;
+        const sorted = Number(order.sortingQty) || 0;
+        const sortingPlan = Number(order.sortingPlannedQty) || 0;
+        const waitingSort = Math.max(0, sortingPlan - sorted);
+        const remaining = Math.max(0, planned - actual);
+        const percent = planned > 0 ? Math.min(100, Math.round(actual / planned * 100)) : 0;
+        const status = jobStatus(order.status);
+        const machineLabel = String(order.machineId || '').toUpperCase() === 'ALL' ? 'ทุกเครื่อง' : (order.machineId || '-');
+        const startButton = order.status === 'open'
+          ? '<button class="btn btn-outline btn-sm" title="เริ่มงาน" onclick="changeStatus(\'' + escJs(order.jobOrderId) + '\',\'in-progress\')"><i class="bi bi-play-fill"></i></button>'
+          : '';
+        const closeButton = order.status === 'in-progress'
+          ? '<button class="btn btn-success btn-sm" title="ปิดงาน" onclick="changeStatus(\'' + escJs(order.jobOrderId) + '\',\'completed\')"><i class="bi bi-check-lg"></i></button>'
+          : '';
+        const cancelButton = order.status !== 'completed' && order.status !== 'cancelled'
+          ? '<button class="btn btn-outline btn-sm" style="color:var(--danger);" title="ยกเลิก" onclick="changeStatus(\'' + escJs(order.jobOrderId) + '\',\'cancelled\')"><i class="bi bi-slash-circle"></i></button>'
+          : '';
+        html += '<tr>' +
+          '<td><strong style="color:#4338ca;">' + escHtml(order.jobOrderId) + '</strong>' +
+            (order.queueNo ? ' <span class="badge" style="font-size:10px;padding:1px 6px;white-space:nowrap;background:' +
+              (order.queueNo === 1 ? '#4338ca;color:#fff' : '#e0e7ff;color:#4338ca') + ';">คิว #' + order.queueNo + '</span>' : '') +
+            '<br><span class="text-xs text-muted">' + escHtml(priorityLabel(order.priority)) + '</span></td>' +
+          '<td>' + escHtml(order.workDate || '-') + '<br><span class="text-xs text-muted">กะ ' + escHtml(order.shift || 'ALL') + '</span></td>' +
+          '<td>' + escHtml(order.productCode || '-') + '<br><span class="text-xs text-muted">' + escHtml(machineLabel) + '</span></td>' +
+          '<td class="number"><strong>' + UI.formatNumber(planned) + '</strong></td>' +
+          '<td class="number" style="color:var(--success);"><strong>' + UI.formatNumber(actual) + '</strong></td>' +
+          '<td class="number" style="color:var(--danger);"><strong>' + UI.formatNumber(defect) + '</strong></td>' +
+          '<td class="number" style="color:#d97706;">' + UI.formatNumber(waitingSort) + '</td>' +
+          '<td class="number" style="color:#4338ca;">' + UI.formatNumber(sorted) + '<br><span class="text-xs text-muted">/ ' + UI.formatNumber(sortingPlan) + '</span></td>' +
+          '<td class="number">' + UI.formatNumber(remaining) + '</td>' +
+          '<td class="planning-progress"><div class="progress-bar-container"><div class="progress-bar-fill" style="width:' + percent + '%;background:' + (percent >= 80 ? 'var(--success)' : percent >= 40 ? '#f59e0b' : '#3b82f6') + ';"></div></div><div class="text-xs text-muted mt-1">' + percent + '%</div></td>' +
+          '<td><span class="badge" style="background:' + status.bg + ';color:' + status.color + ';white-space:nowrap;">' + status.label + '</span></td>' +
+          '<td><div class="d-flex gap-1">' + startButton + closeButton + cancelButton + '</div></td>' +
+          '</tr>';
+      });
+      html += '</tbody></table></div>';
+      list.innerHTML = html;
+    }
+
+    let statusChangeInFlight = false;
+
+    async function changeStatus(jobOrderId, status) {
+      if (statusChangeInFlight) return;
+      if (!confirm('ยืนยันเปลี่ยนสถานะ Job Order เป็น "' + jobStatus(status).label + '" ใช่หรือไม่?')) return;
+      statusChangeInFlight = true;
+      UI.showLoading('กำลังบันทึกสถานะ...');
+      try {
+        // Setting a status is idempotent, so it may be replayed through Apps Script's
+        // flaky redirect hop instead of failing on the first dropped connection.
+        const result = await API.post('updateJobOrder',
+          { jobOrderId: jobOrderId, updates: { status: status } },
+          { retries: 2, timeoutMs: 20000 });
+        UI.showToast(result.message || 'บันทึกแล้ว', result.success ? 'success' : 'error');
+        if (result.success) loadOrders();
+      } catch (err) {
+        // The request may still have reached the sheet: reload so the list shows the
+        // status that was actually saved rather than leaving the operator guessing.
+        UI.showToast('เน็ตช้า/ไม่ตอบกลับ — กำลังตรวจสอบสถานะที่บันทึกจริง', 'warning');
+        loadOrders();
+      } finally {
+        UI.hideLoading();
+        statusChangeInFlight = false;
+      }
+    }
+
+    function jobStatus(status) {
+      const map = {
+        open: { label: 'เปิดงาน', color: '#2563eb', bg: '#dbeafe' },
+        'in-progress': { label: 'กำลังทำ', color: '#b45309', bg: '#fef3c7' },
+        completed: { label: 'เสร็จแล้ว', color: '#15803d', bg: '#dcfce7' },
+        cancelled: { label: 'ยกเลิก', color: '#dc2626', bg: '#fee2e2' }
+      };
+      return map[status] || { label: status || '-', color: '#6b7280', bg: '#f3f4f6' };
+    }
+
+    function priorityLabel(priority) {
+      return { low: 'ต่ำ', normal: 'ปกติ', high: 'สูง', urgent: 'เร่งด่วน' }[priority] || priority || 'ปกติ';
+    }
+
+    function escHtml(value) {
+      return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function escAttr(value) {
+      return escHtml(value).replace(/"/g, '&quot;');
+    }
+    function escJs(value) {
+      return String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+  </script>
+</body>
+</html>
