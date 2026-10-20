@@ -1,11 +1,12 @@
 {
+  "authUrl": "",
   "apps": [
     {
       "id": "coil-winding",
       "name": "Coil Winding",
       "nameTh": "ระบบผลิต Coil Winding (CWM)",
       "description": "บันทึก NG, แผนการผลิต, Daily Check, Parts, รายงานอัตโนมัติ",
-      "icon": "🌀",
+      "icon": "cog",
       "color": "#2563eb",
       "repo": "jrh91234/Coil-winding",
       "branch": "main",
@@ -15,6 +16,16 @@
         "css",
         "js",
         "Logo JR.jpg"
+      ],
+      "roles": [
+        "Admin",
+        "Planning",
+        "Production",
+        "QC",
+        "Viewer"
+      ],
+      "sessionKeys": [
+        "CWM_AUTH_USER"
       ]
     },
     {
@@ -22,7 +33,7 @@
       "name": "Coil Cp/Cpk",
       "nameTh": "SPC Dashboard - Cp/Cpk",
       "description": "วิเคราะห์ความสามารถกระบวนการ Cp/Cpk และ Appearance check",
-      "icon": "📈",
+      "icon": "chart",
       "color": "#0891b2",
       "repo": "jrh91234/coil-CP-CPK",
       "branch": "main",
@@ -32,14 +43,18 @@
         "css",
         "js",
         "images"
-      ]
+      ],
+      "roles": [
+        "user"
+      ],
+      "sessionKeys": []
     },
     {
       "id": "job-order-tracking",
       "name": "Job Order Tracking",
       "nameTh": "ติดตาม Job Order",
       "description": "ลงยอดผลิต, Dashboard, Barcode, Incident และกำลังคน",
-      "icon": "📋",
+      "icon": "clipboard",
       "color": "#7c3aed",
       "repo": "jrh91234/Job-order-tracking",
       "branch": "main",
@@ -61,6 +76,12 @@
         "config.json",
         "report-fonts.js",
         "Logo JR.jpg"
+      ],
+      "roles": [
+        "user"
+      ],
+      "sessionKeys": [
+        "job_tracker_auth"
       ]
     },
     {
@@ -68,7 +89,7 @@
       "name": "Lug & Screw",
       "nameTh": "H1 Lug & Screw Management",
       "description": "ผลิต, Sorting, Daily Check, ซ่อมบำรุง, วัตถุดิบ, ต้นทุน",
-      "icon": "🔩",
+      "icon": "wrench",
       "color": "#ea580c",
       "repo": "jrh91234/Lug-Screw-management-system",
       "branch": "claude/h1-production-management-IYnqQ",
@@ -76,6 +97,17 @@
       "source": "docs",
       "include": [
         "."
+      ],
+      "roles": [
+        "admin",
+        "supervisor",
+        "maintenance",
+        "operator",
+        "viewer"
+      ],
+      "sessionKeys": [
+        "h1_token",
+        "h1_user"
       ]
     },
     {
@@ -83,13 +115,20 @@
       "name": "WHSYS",
       "nameTh": "Factory BOM / คลังสินค้า",
       "description": "BOM, Part list รายแผนก และข้อมูลคลัง",
-      "icon": "🏭",
+      "icon": "warehouse",
       "color": "#16a34a",
       "repo": "jrh91234/WHSYS",
       "branch": "main",
       "entry": "index.html",
       "include": [
         "index.html"
+      ],
+      "roles": [
+        "ADMIN",
+        "STAFF"
+      ],
+      "sessionKeys": [
+        "nlc_erp_session"
       ]
     },
     {
@@ -97,7 +136,7 @@
       "name": "P&L Business Plan",
       "nameTh": "P&L รายแผนก & Business Plan",
       "description": "กำไรขาดทุนรายแผนก และแผนธุรกิจ (Google Sheets)",
-      "icon": "💰",
+      "icon": "wallet",
       "color": "#ca8a04",
       "repo": "jrh91234/department-pl-business-plan",
       "branch": "main",
@@ -105,20 +144,36 @@
       "source": "site",
       "include": [
         "."
-      ]
+      ],
+      "roles": [
+        "user"
+      ],
+      "sessionKeys": []
     },
     {
       "id": "organize",
       "name": "Organize (HR)",
       "nameTh": "ระบบบุคคล / ผังองค์กร",
       "description": "ข้อมูลพนักงาน แผนก ตำแหน่ง และผังองค์กร",
-      "icon": "👥",
+      "icon": "users",
       "color": "#db2777",
       "repo": "jrh91234/-Organize",
       "branch": "main",
       "entry": "index.html",
       "include": [
         "index.html"
+      ],
+      "roles": [
+        "admin",
+        "supervisor",
+        "leader",
+        "viewer"
+      ],
+      "sessionKeys": [
+        "currentUser"
+      ],
+      "fields": [
+        "dept"
       ]
     }
   ]

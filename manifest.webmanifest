@@ -1,0 +1,18 @@
+{
+  "name": "Assembly Super App",
+  "short_name": "Super App",
+  "description": "รวมระบบงานโรงงานไว้ในที่เดียว",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f9",
+  "theme_color": "#1d4ed8",
+  "lang": "th",
+  "icons": [
+    { "src": "portal/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "portal/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "portal/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "portal/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
