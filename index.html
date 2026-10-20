@@ -8,59 +8,73 @@
   <link rel="icon" href="portal/icon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="portal/icon-180.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#1d4ed8">
+  <meta name="theme-color" content="#0f1f3d">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="portal/portal.css">
 </head>
 <body>
+  <nav class="sidebar" id="sidebar">
+    <a class="brand" href="#/">
+      <img src="portal/icon.svg" alt="" width="32" height="32">
+      <span class="brand-text"><strong>Assembly Super App</strong><small>ระบบบริหารงานการผลิต</small></span>
+    </a>
+    <div class="nav-scroll">
+      <div class="nav-sep">เมนูหลัก</div>
+      <a class="nav-item" href="#/" data-id="">
+        <span class="nav-icon" data-icon="home"></span><span class="nav-label">หน้าหลัก</span>
+      </a>
+      <div class="nav-sep">ระบบงาน</div>
+      <div id="navApps"></div>
+      <div id="navAdmin" hidden>
+        <div class="nav-sep">ผู้ดูแลระบบ</div>
+        <a class="nav-item" href="#/admin" data-id="admin">
+          <span class="nav-icon" data-icon="shield"></span><span class="nav-label">จัดการผู้ใช้</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+  <div class="scrim" id="scrim"></div>
+
   <header class="topbar">
     <button class="icon-btn menu-btn" id="menuBtn" aria-label="เมนู">☰</button>
-    <a class="brand" href="#/">
-      <img src="portal/icon.svg" alt="" width="28" height="28">
-      <span>Assembly Super App</span>
-    </a>
-    <div class="current" id="current"></div>
+    <nav class="crumbs" aria-label="ตำแหน่งปัจจุบัน">
+      <a href="#/">หน้าหลัก</a><span class="current" id="current"></span>
+    </nav>
     <div class="actions" id="appActions" hidden>
       <select id="subPage" aria-label="หน้าย่อย" hidden></select>
       <button class="icon-btn" id="reloadBtn" title="โหลดแอปใหม่">⟳</button>
       <a class="icon-btn" id="newTabBtn" target="_blank" rel="noopener" title="เปิดในแท็บใหม่">↗</a>
     </div>
+    <span class="today" id="today"></span>
     <div class="user-menu" id="userMenu" hidden>
       <button class="user-btn" id="userBtn" aria-haspopup="true">
-        <span class="avatar" id="userAvatar"></span><span class="user-name" id="userName"></span>
+        <span class="avatar" id="userAvatar"></span>
+        <span class="user-meta"><span class="user-name" id="userName"></span><small id="userRole"></small></span>
       </button>
       <div class="dropdown" id="userDropdown" hidden>
-        <button id="changePwBtn">🔑 เปลี่ยนรหัสผ่าน</button>
-        <button id="logoutBtn">🚪 ออกจากระบบ</button>
+        <button id="changePwBtn"><span data-icon="key"></span>เปลี่ยนรหัสผ่าน</button>
+        <button id="logoutBtn"><span data-icon="logout"></span>ออกจากระบบ</button>
       </div>
     </div>
   </header>
 
-  <nav class="sidebar" id="sidebar">
-    <a class="nav-item" href="#/" data-id="">
-      <span class="nav-icon">🏠</span><span class="nav-label">หน้าหลัก</span>
-    </a>
-    <div class="nav-sep">แอปพลิเคชัน</div>
-    <div id="navApps"></div>
-    <div id="navAdmin" hidden>
-      <div class="nav-sep">ผู้ดูแลระบบ</div>
-      <a class="nav-item" href="#/admin" data-id="admin">
-        <span class="nav-icon">⚙️</span><span class="nav-label">จัดการผู้ใช้</span>
-      </a>
-    </div>
-  </nav>
-  <div class="scrim" id="scrim"></div>
-
   <main class="content">
     <section class="home" id="home">
-      <div class="hero">
-        <h1 id="greeting">ระบบงานโรงงานในที่เดียว</h1>
-        <p>เลือกแอปที่ต้องการใช้งาน แอปที่เปิดแล้วจะคงสถานะไว้เมื่อสลับไปมา</p>
-        <input type="search" id="search" placeholder="ค้นหาแอป…" autocomplete="off">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow" id="greeting">ยินดีต้อนรับ</p>
+          <h1>ระบบงานทั้งหมด</h1>
+          <p class="muted-lead">เลือกระบบที่ต้องการใช้งาน ระบบที่เปิดไว้จะคงสถานะเมื่อสลับไปมา</p>
+        </div>
+        <input type="search" id="search" placeholder="ค้นหาระบบ…" autocomplete="off">
       </div>
+      <div class="section-title"><span>แอปพลิเคชัน</span><span class="count" id="appCount"></span></div>
       <div class="grid" id="grid"></div>
-      <p class="footnote" id="footnote">แต่ละแอปยังเชื่อมต่อ Google Apps Script / Google Sheets ของตัวเองเหมือนเดิม</p>
+      <footer class="page-foot">
+        <span>© <span id="year"></span> Assembly Super App</span>
+        <span id="footnote"></span>
+      </footer>
     </section>
 
     <section class="admin" id="admin" hidden>
@@ -136,6 +150,7 @@
     </form>
   </dialog>
 
+  <script src="portal/icons.js"></script>
   <script src="portal/sso.js"></script>
   <script src="portal/portal.js"></script>
 </body>

@@ -65,11 +65,12 @@
       const name = session.user.name || session.user.username;
       $("userName").textContent = name;
       $("userAvatar").textContent = name.trim().charAt(0).toUpperCase();
-      $("greeting").textContent = `สวัสดี ${name}`;
+      $("userRole").textContent = isAdmin() ? "ผู้ดูแลระบบ" : session.user.username;
+      $("greeting").textContent = `ยินดีต้อนรับ, ${name}`;
     }
     $("footnote").textContent = authOn()
-      ? "เข้าสู่ระบบครั้งเดียวที่นี่ แล้วแอปจะเข้าสู่ระบบให้อัตโนมัติตามสิทธิ์ที่ได้รับ"
-      : "ยังไม่ได้ตั้งค่าระบบผู้ใช้กลาง (authUrl ใน apps.config.json) — แต่ละแอปใช้ login ของตัวเอง";
+      ? "เข้าสู่ระบบครั้งเดียว ใช้งานได้ทุกระบบตามสิทธิ์ที่ได้รับ"
+      : "แต่ละระบบใช้การเข้าสู่ระบบของตัวเอง";
     renderNav();
     renderGrid($("search").value);
     route();
@@ -130,8 +131,8 @@
   function renderNav() {
     $("navApps").replaceChildren(
       ...apps.map((app) =>
-        el("a", { class: "nav-item", href: `#/${app.id}`, "data-id": app.id, style: `--app-color:${app.color}` }, [
-          el("span", { class: "nav-icon", text: app.icon }),
+        el("a", { class: "nav-item", href: `#/${app.id}`, "data-id": app.id }, [
+          el("span", { class: "nav-icon" }, [portalIcon(app.icon)]),
           el("span", { class: "nav-label", text: app.name }),
           frames[app.id] ? el("span", { class: "nav-dot", title: "เปิดอยู่" }) : "",
         ])
@@ -147,8 +148,9 @@
   function renderGrid(filter) {
     const q = (filter || "").trim().toLowerCase();
     const list = apps.filter(
-      (a) => !q || [a.name, a.nameTh, a.description, a.repo].join(" ").toLowerCase().includes(q)
+      (a) => !q || [a.name, a.nameTh, a.description].join(" ").toLowerCase().includes(q)
     );
+    $("appCount").textContent = `${list.length} ระบบ`;
     if (!list.length) {
       $("grid").replaceChildren(
         el("p", { class: "empty", text: q ? "ไม่พบแอปที่ค้นหา" : "บัญชีนี้ยังไม่ได้รับสิทธิ์ใช้งานแอปใด ติดต่อผู้ดูแลระบบ" })
@@ -157,14 +159,14 @@
     }
     $("grid").replaceChildren(
       ...list.map((app) =>
-        el("a", { class: "card", href: `#/${app.id}`, style: `--app-color:${app.color}` }, [
+        el("a", { class: "card", href: `#/${app.id}` }, [
           el("div", { class: "card-head" }, [
-            el("div", { class: "card-icon", text: app.icon }),
+            el("div", { class: "card-icon" }, [portalIcon(app.icon)]),
             el("div", {}, [el("h2", { text: app.name }), el("p", { class: "th", text: app.nameTh })]),
           ]),
           el("p", { class: "desc", text: app.description }),
           el("div", { class: "meta" }, [
-            el("span", { text: app.repo }),
+            el("span", { class: "open-link" }, ["เปิดระบบ", portalIcon("arrow")]),
             roleOf(app) ? el("span", { class: "role-chip", text: roleOf(app) }) : "",
           ]),
         ])
@@ -207,7 +209,7 @@
     $("appActions").hidden = !app;
 
     if (adminView) {
-      $("current").textContent = "⚙️ จัดการผู้ใช้";
+      $("current").textContent = "จัดการผู้ใช้";
       document.title = "จัดการผู้ใช้ · Assembly Super App";
       loadUsers();
       return;
@@ -220,7 +222,7 @@
 
     const frame = frames[app.id];
     Object.values(frames).forEach((f) => (f.hidden = f !== frame));
-    $("current").textContent = `${app.icon} ${app.name}`;
+    $("current").textContent = app.name;
     document.title = `${app.name} · Assembly Super App`;
     $("newTabBtn").href = frame.src;
 
@@ -321,7 +323,7 @@
       ...list.map((u) => {
         const chips = Object.entries(u.apps || {}).map(([id, a]) => {
           const app = config.apps.find((x) => x.id === id);
-          const label = id === "portal" ? "⚙️ Portal" : app ? `${app.icon} ${app.name}` : id;
+          const label = id === "portal" ? "Portal" : app ? app.name : id;
           return el("span", { class: "chip", text: `${label}: ${a.role}${a.dept ? " · " + a.dept : ""}` });
         });
         return el("tr", {}, [
@@ -363,7 +365,7 @@
     showError("userFormError", "");
 
     const cur = (u && u.apps) || {};
-    const rows = [{ id: "portal", icon: "⚙️", name: "Portal (จัดการผู้ใช้)", roles: ["admin"] }].concat(config.apps);
+    const rows = [{ id: "portal", icon: "shield", name: "Portal (จัดการผู้ใช้)", roles: ["admin"] }].concat(config.apps);
     $("fApps").replaceChildren(
       ...rows.map((app) => {
         const a = cur[app.id] || {};
@@ -371,7 +373,7 @@
           el("input", { "data-app": app.id, "data-field": f, value: a[f] || "", placeholder: f === "dept" ? "แผนก เช่น ASSEMBLY / ALL" : f })
         );
         return el("div", { class: "app-role" }, [
-          el("span", { class: "app-role-name", text: `${app.icon} ${app.name}` }),
+          el("span", { class: "app-role-name" }, [portalIcon(app.icon), app.name]),
           roleSelect(app.id, app.roles || ["user"], a.role),
           ...fields,
         ]);
@@ -423,6 +425,10 @@
   });
 
   // ---------- boot ----------
+
+  document.querySelectorAll("[data-icon]").forEach((n) => n.prepend(portalIcon(n.dataset.icon)));
+  $("year").textContent = new Date().getFullYear();
+  $("today").textContent = new Date().toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   fetch("apps.config.json", { cache: "no-cache" })
     .then((r) => r.json())
