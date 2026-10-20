@@ -61,6 +61,8 @@ commit การเปลี่ยนแปลงใน `apps/` แล้ว dep
 
 ## เปิดใช้งาน GitHub Pages
 
+ตั้ง default branch ของ repo เป็น `main` (Settings → General → Default branch) เพราะการ sync ตามเวลาจะรันบน default branch และ deploy ได้เฉพาะจาก `main`
+
 Settings → Pages → Source: **GitHub Actions** แล้ว URL จะเป็น
 `https://jrh91234.github.io/Assembly-super-app/`
 
