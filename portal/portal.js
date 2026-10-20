@@ -132,7 +132,7 @@
   function renderNav() {
     $("navApps").replaceChildren(
       ...apps.map((app) =>
-        el("a", { class: "nav-item", href: `#/${app.id}`, "data-id": app.id }, [
+        el("a", { class: "nav-item", href: `#/${app.id}`, "data-id": app.id, title: app.name }, [
           el("span", { class: "nav-icon" }, [portalIcon(app.icon)]),
           el("span", { class: "nav-label", text: app.name }),
           frames[app.id] ? el("span", { class: "nav-dot", title: "เปิดอยู่" }) : "",
@@ -259,7 +259,26 @@
     frames[app.id].src = appUrl(app, e.target.value);
     $("newTabBtn").href = frames[app.id].src;
   });
-  $("menuBtn").addEventListener("click", () => document.body.classList.toggle("nav-open"));
+  // ☰ collapses the sidebar to an icon rail on desktop (remembered per browser)
+  // and opens it as a drawer on small screens.
+  const mobileNav = window.matchMedia("(max-width: 820px)");
+  function setNavCollapsed(on) {
+    document.body.classList.toggle("nav-collapsed", on);
+    $("menuBtn").setAttribute("aria-expanded", String(!on));
+    $("menuBtn").title = on ? "แสดงเมนู" : "ซ่อนเมนู";
+    try {
+      localStorage.setItem("SUPERAPP_NAV_COLLAPSED", on ? "1" : "0");
+    } catch (e) {}
+  }
+  try {
+    setNavCollapsed(localStorage.getItem("SUPERAPP_NAV_COLLAPSED") === "1");
+  } catch (e) {
+    setNavCollapsed(false);
+  }
+  $("menuBtn").addEventListener("click", () => {
+    if (mobileNav.matches) document.body.classList.toggle("nav-open");
+    else setNavCollapsed(!document.body.classList.contains("nav-collapsed"));
+  });
   $("scrim").addEventListener("click", () => document.body.classList.remove("nav-open"));
   $("search").addEventListener("input", (e) => renderGrid(e.target.value));
   window.addEventListener("hashchange", route);

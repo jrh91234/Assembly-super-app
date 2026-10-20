@@ -21,17 +21,17 @@
     </a>
     <div class="nav-scroll">
       <div class="nav-sep">เมนูหลัก</div>
-      <a class="nav-item" href="#/" data-id="">
+      <a class="nav-item" href="#/" data-id="" title="หน้าหลัก">
         <span class="nav-icon" data-icon="home"></span><span class="nav-label">หน้าหลัก</span>
       </a>
-      <a class="nav-item" href="#/dashboards" data-id="dashboards">
+      <a class="nav-item" href="#/dashboards" data-id="dashboards" title="Dashboard รวม">
         <span class="nav-icon" data-icon="dashboard"></span><span class="nav-label">Dashboard รวม</span>
       </a>
       <div class="nav-sep">ระบบงาน</div>
       <div id="navApps"></div>
       <div id="navAdmin" hidden>
         <div class="nav-sep">ผู้ดูแลระบบ</div>
-        <a class="nav-item" href="#/admin" data-id="admin">
+        <a class="nav-item" href="#/admin" data-id="admin" title="จัดการผู้ใช้">
           <span class="nav-icon" data-icon="shield"></span><span class="nav-label">จัดการผู้ใช้</span>
         </a>
       </div>
@@ -40,7 +40,7 @@
   <div class="scrim" id="scrim"></div>
 
   <header class="topbar">
-    <button class="icon-btn menu-btn" id="menuBtn" aria-label="เมนู">☰</button>
+    <button class="icon-btn menu-btn" id="menuBtn" aria-label="ซ่อน/แสดงเมนู" aria-controls="sidebar">☰</button>
     <nav class="crumbs" aria-label="ตำแหน่งปัจจุบัน">
       <a href="#/">หน้าหลัก</a><span class="current" id="current"></span>
     </nav>
