@@ -83,6 +83,8 @@ portal/sso.js         เก็บ session ไว้ที่ localStorage["SUPE
 | Lug & Screw, Organize (HR) | backend ของแอปตรวจ token กับ auth กลาง แล้วออก session ของตัวเอง (สร้าง/อัปเดตผู้ใช้ในชีต Users ของแอปให้อัตโนมัติ) | ต้อง deploy ใหม่ และตั้ง Script Property `SUPERAPP_AUTH_URL` = URL ของ auth กลาง |
 | Coil Cp/Cpk, P&L | ไม่มี login ของตัวเอง / ใช้บัญชี Google — Portal ซ่อนแอปจากผู้ที่ไม่มีสิทธิ์ | ไม่ต้อง |
 
-- Lug & Screw ใช้ Username ของ Super App (ตัวพิมพ์ใหญ่) เป็นรหัสพนักงาน
+- Lug & Screw และ Organize: หลัง deploy โค้ดใหม่ เจ้าของสคริปต์ต้องรันฟังก์ชัน `authorizeSuperAppSso` ใน Apps Script editor หนึ่งครั้ง
+  เพื่ออนุญาต `UrlFetchApp` ไม่เช่นนั้น web app ของแอปนั้นจะตอบ error เรื่องสิทธิ์
+- Lug & Screw ใช้ Username ของ Super App (ตัวพิมพ์ใหญ่) เป็นรหัสพนักงาน — ตั้ง Username ให้ตรงกับรหัสพนักงานเดิมเพื่อผูกกับข้อมูลเดิม
 - login แบบเดิมของแต่ละแอปยังใช้ได้ตามปกติ
 - ออกจากระบบที่ Portal จะล้าง session ของทุกแอปด้วย
