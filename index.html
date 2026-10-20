@@ -24,6 +24,9 @@
       <a class="nav-item" href="#/" data-id="">
         <span class="nav-icon" data-icon="home"></span><span class="nav-label">หน้าหลัก</span>
       </a>
+      <a class="nav-item" href="#/dashboards" data-id="dashboards">
+        <span class="nav-icon" data-icon="dashboard"></span><span class="nav-label">Dashboard รวม</span>
+      </a>
       <div class="nav-sep">ระบบงาน</div>
       <div id="navApps"></div>
       <div id="navAdmin" hidden>
@@ -75,6 +78,25 @@
         <span>© <span id="year"></span> Assembly Super App</span>
         <span id="footnote"></span>
       </footer>
+    </section>
+
+    <section class="dash" id="dash" hidden>
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">ภาพรวม</p>
+          <h1>Dashboard รวมทุกระบบ</h1>
+          <p class="muted-lead">Dashboard ของแต่ละระบบในหน้าเดียว แต่ละช่องเข้าสู่ระบบตามสิทธิ์ของผู้ใช้</p>
+        </div>
+        <div class="dash-tools">
+          <div class="seg" role="group" aria-label="จำนวนคอลัมน์">
+            <button type="button" data-cols="1">1 คอลัมน์</button>
+            <button type="button" data-cols="2">2 คอลัมน์</button>
+            <button type="button" data-cols="3">3 คอลัมน์</button>
+          </div>
+          <button type="button" class="btn" id="dashReloadAll">⟳ โหลดใหม่ทั้งหมด</button>
+        </div>
+      </div>
+      <div class="dash-grid" id="dashGrid"></div>
     </section>
 
     <section class="admin" id="admin" hidden>

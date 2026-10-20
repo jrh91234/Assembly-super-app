@@ -40,6 +40,19 @@ GitHub Actions (`.github/workflows/pages.yml`) sync อัตโนมัติ�
 commit การเปลี่ยนแปลงใน `apps/` แล้ว deploy ขึ้น GitHub Pages
 ถ้า repo ต้นทางเปลี่ยนเป็น private ให้เพิ่ม secret `SYNC_TOKEN` (PAT ที่อ่าน repo ได้)
 
+## Dashboard รวม (`#/dashboards`)
+
+แสดง Dashboard ของทุกระบบที่ผู้ใช้มีสิทธิ์ในหน้าเดียว (เลือก 1–3 คอลัมน์, ขยายเต็มจอ, โหลดใหม่ทีละช่องหรือทั้งหมด)
+แต่ละช่องเป็น iframe ของหน้า Dashboard ของแอปนั้น โหลดเมื่อเลื่อนมาถึง และใช้ session ของแอปนั้นตามปกติ
+
+กำหนดใน `apps.config.json` → `dashboard` ของแต่ละแอป:
+
+| ค่า | ความหมาย |
+|-----|----------|
+| `path` | หน้าที่เปิด เช่น `pages/dashboard.html` |
+| `call` / `arg` / `when` | หลังโหลด เรียก `window[call](arg)` ใน iframe เมื่อ `window[when]` มีค่า (เช่น Coil Winding: `switchTab('dashboard')` หลัง login) |
+| `click` | หลังโหลด คลิก element ที่ตรงกับ selector นี้ (เช่น Organize: ปุ่ม "แดชบอร์ดสรุป") |
+
 ## เพิ่มแอปใหม่
 
 เพิ่ม object ใน `apps.config.json` (`id`, `name`, `nameTh`, `description`, `icon`, `color`,
