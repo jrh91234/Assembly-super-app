@@ -7,7 +7,7 @@
 |-----|-------------|----------|
 | 🌀 Coil Winding (CWM) | [Coil-winding](https://github.com/jrh91234/Coil-winding) | `apps/coil-winding` |
 | 📈 Coil Cp/Cpk | [coil-CP-CPK](https://github.com/jrh91234/coil-CP-CPK) | `apps/coil-cp-cpk` |
-| 📋 Job Order Tracking | [Job-order-tracking](https://github.com/jrh91234/Job-order-tracking) | `apps/job-order-tracking` |
+| 📋 H9 Enclosure (Job Order Tracking) | [Job-order-tracking](https://github.com/jrh91234/Job-order-tracking) | `apps/job-order-tracking` |
 | 🔩 Lug & Screw | [Lug-Screw-management-system](https://github.com/jrh91234/Lug-Screw-management-system) (`docs/`) | `apps/lug-screw` |
 | 🏭 WHSYS | [WHSYS](https://github.com/jrh91234/WHSYS) | `apps/whsys` |
 | 💰 P&L Business Plan | [department-pl-business-plan](https://github.com/jrh91234/department-pl-business-plan) (`site/`) | `apps/pl-business-plan` |

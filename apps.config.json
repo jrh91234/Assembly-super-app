@@ -60,8 +60,8 @@
     },
     {
       "id": "job-order-tracking",
-      "name": "Job Order Tracking",
-      "nameTh": "ติดตาม Job Order",
+      "name": "H9 Enclosure",
+      "nameTh": "H9 Enclosure · ติดตาม Job Order",
       "description": "ลงยอดผลิต, Dashboard, Barcode, Incident และกำลังคน",
       "icon": "clipboard",
       "color": "#7c3aed",
